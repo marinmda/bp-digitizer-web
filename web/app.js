@@ -4,6 +4,8 @@
    server at all; the server only adds OCR, backup and reminders. */
 'use strict';
 
+const BUILD = '__BUILD_VERSION__';
+
 import * as db from './db.js';
 import * as bp from './bp.js';
 import { t, plural, load as loadLocale, setLocale, locale, LOCALES, fmtDate } from './i18n.js';
@@ -490,6 +492,19 @@ function renderSettings() {
     if (e.target.files[0]) importFile(e.target.files[0]);
     e.target.value = '';
   });
+  const ver = $('s-version');
+  if (ver) {
+    ver.textContent = `build ${BUILD}`;
+    ver.onclick = async () => {
+      ver.textContent = 'checking…';
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map((r) => r.update()));
+        for (const k of await caches.keys()) await caches.delete(k);
+        location.reload();
+      } catch { ver.textContent = `build ${BUILD}`; }
+    };
+  }
   $('s-wipe').addEventListener('click', async () => {
     if (!confirm(t('settings_delete_all_confirm'))) return;
     await db.wipe();
