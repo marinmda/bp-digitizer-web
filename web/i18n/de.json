@@ -285,6 +285,7 @@
  "settings_restore_passphrase": "Backup-Passphrase eingeben",
  "settings_restore_wrong": "Falsche Passphrase — nichts geändert.",
  "settings_server_absent": "Für diese Installation ist kein Server konfiguriert. Alles Übrige funktioniert.",
+ "settings_server_checking": "Wird geprüft…",
  "settings_server_link": "Verbinden",
  "settings_server_linked": "Serverfunktionen aktiviert",
  "settings_server_linked_as": "Verbunden als {0}",

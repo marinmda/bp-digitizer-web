@@ -285,6 +285,7 @@
  "settings_restore_passphrase": "Saisissez votre phrase secrète",
  "settings_restore_wrong": "Phrase secrète incorrecte — rien n'a changé.",
  "settings_server_absent": "Aucun serveur configuré. Tout le reste fonctionne.",
+ "settings_server_checking": "Vérification…",
  "settings_server_link": "Lier",
  "settings_server_linked": "Fonctions serveur activées",
  "settings_server_linked_as": "Lié en tant que {0}",

@@ -285,6 +285,7 @@
  "settings_restore_passphrase": "अपना बैकअप पासफ़्रेज़ दर्ज करें",
  "settings_restore_wrong": "गलत पासफ़्रेज़ — कुछ नहीं बदला।",
  "settings_server_absent": "कोई सर्वर कॉन्फ़िगर नहीं है। बाकी सब काम करता है।",
+ "settings_server_checking": "जाँच हो रही है…",
  "settings_server_link": "लिंक करें",
  "settings_server_linked": "सर्वर सुविधाएँ सक्षम",
  "settings_server_linked_as": "{0} के रूप में लिंक",

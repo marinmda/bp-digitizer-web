@@ -283,6 +283,7 @@
  "settings_restore_passphrase": "输入备份口令",
  "settings_restore_wrong": "口令错误 — 未做任何更改。",
  "settings_server_absent": "未配置服务器，其余功能照常可用。",
+ "settings_server_checking": "检查中…",
  "settings_server_link": "连接",
  "settings_server_linked": "服务器功能已启用",
  "settings_server_linked_as": "已连接为 {0}",

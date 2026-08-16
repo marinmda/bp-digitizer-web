@@ -285,6 +285,7 @@
  "settings_restore_passphrase": "Introduza a palavra-passe da cópia",
  "settings_restore_wrong": "Palavra-passe errada — nada foi alterado.",
  "settings_server_absent": "Não há servidor configurado. Tudo o resto funciona.",
+ "settings_server_checking": "A verificar…",
  "settings_server_link": "Ligar",
  "settings_server_linked": "Funções de servidor ativadas",
  "settings_server_linked_as": "Ligado como {0}",

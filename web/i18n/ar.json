@@ -293,6 +293,7 @@
  "settings_restore_passphrase": "أدخل عبارة مرور النسخة",
  "settings_restore_wrong": "عبارة مرور خاطئة — لم يتغير شيء.",
  "settings_server_absent": "لا يوجد خادم مهيأ. كل شيء آخر يعمل.",
+ "settings_server_checking": "جارٍ التحقق…",
  "settings_server_link": "ربط",
  "settings_server_linked": "تم تفعيل ميزات الخادم",
  "settings_server_linked_as": "مرتبط باسم {0}",

@@ -499,9 +499,17 @@ function renderSettings() {
 }
 
 /* ------------------------------------------------------ server features -- */
-function renderServerSection() {
+async function renderServerSection() {
   const box = $('s-server');
   if (!box) return;
+  // Wait for the probe rather than assuming unlinked: rendering "enter a
+  // code" while the answer is still in flight makes a linked device look
+  // unlinked on every refresh.
+  if (!srv.state.checked) {
+    box.innerHTML = `<p class="muted">${esc(t('settings_server_checking'))}</p>`;
+    try { await srv.ready(); } catch { /* falls through to absent */ }
+    if ($('s-server') !== box) return;      // user navigated away meanwhile
+  }
   if (srv.state.present === false) {
     box.innerHTML = `<p class="muted">${esc(t('settings_server_absent'))}</p>`;
     return;
@@ -522,7 +530,7 @@ function renderServerSection() {
       try {
         await srv.redeem($('s-code').value);
         toast(t('settings_server_linked'));
-        renderServerSection();
+        await renderServerSection();
         updateScanButton();
       } catch (e) { err.textContent = e.message; err.hidden = false; }
     });
@@ -555,7 +563,7 @@ function renderServerSection() {
         readings: await db.allReadings(), profile: await db.getKV('profile'),
       });
       toast(t('settings_backup_done'));
-      renderServerSection();
+      await renderServerSection();
     } catch (e) { toast(e.message); }
   });
 
@@ -666,7 +674,7 @@ async function boot() {
   show('dashboard');
   // Probing is deliberately after first paint: a missing or slow server must
   // never delay an app that does not need one.
-  srv.probe().then(() => { updateScanButton(); }).catch(() => {});
+  srv.ready().then(() => { updateScanButton(); }).catch(() => {});
   const code = new URLSearchParams(location.search).get('code');
   if (code) {
     srv.redeem(code).then(() => {

@@ -4,7 +4,20 @@
    only the static directory. */
 'use strict';
 
-export const state = { linked: false, features: {}, checked: false };
+export const state = { linked: false, features: {}, checked: false, present: null };
+
+// Memoised so every caller shares one round trip, and so a view rendered
+// before boot's probe finishes can await the same answer rather than
+// assuming the worst.
+let probing = null;
+export function ready() {
+  if (!probing) probing = probe();
+  return probing;
+}
+export function reprobe() {
+  probing = probe();
+  return probing;
+}
 
 async function api(path, opts = {}) {
   const r = await fetch(path, opts);
@@ -46,7 +59,7 @@ export async function redeem(code) {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ code }),
   });
-  return probe();
+  return reprobe();
 }
 
 /* ------------------------------------------------------------------ OCR -- */

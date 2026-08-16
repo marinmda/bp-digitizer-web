@@ -289,6 +289,7 @@
  "settings_restore_passphrase": "Введіть пароль резервної копії",
  "settings_restore_wrong": "Невірний пароль — нічого не змінено.",
  "settings_server_absent": "Сервер не налаштовано. Решта працює.",
+ "settings_server_checking": "Перевірка…",
  "settings_server_link": "Підключити",
  "settings_server_linked": "Серверні функції увімкнено",
  "settings_server_linked_as": "Підключено як {0}",

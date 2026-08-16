@@ -287,6 +287,7 @@
  "settings_restore_passphrase": "Introdu parola de backup",
  "settings_restore_wrong": "Parolă greșită — nu s-a modificat nimic.",
  "settings_server_absent": "Nu există server pentru această instalare. Restul funcționează normal.",
+ "settings_server_checking": "Se verifică…",
  "settings_server_link": "Conectează",
  "settings_server_linked": "Funcțiile de server sunt active",
  "settings_server_linked_as": "Conectat ca {0}",

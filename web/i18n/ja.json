@@ -283,6 +283,7 @@
  "settings_restore_passphrase": "バックアップのパスフレーズを入力",
  "settings_restore_wrong": "パスフレーズが違います。変更はありません。",
  "settings_server_absent": "サーバーは設定されていません。他の機能は使えます。",
+ "settings_server_checking": "確認中…",
  "settings_server_link": "連携",
  "settings_server_linked": "サーバー機能を有効にしました",
  "settings_server_linked_as": "{0} として連携済み",

@@ -285,6 +285,7 @@
  "settings_restore_passphrase": "Introduce tu contraseña de copia",
  "settings_restore_wrong": "Contraseña incorrecta: no se cambió nada.",
  "settings_server_absent": "No hay servidor configurado. Todo lo demás sigue funcionando.",
+ "settings_server_checking": "Comprobando…",
  "settings_server_link": "Vincular",
  "settings_server_linked": "Funciones de servidor activadas",
  "settings_server_linked_as": "Vinculado como {0}",
