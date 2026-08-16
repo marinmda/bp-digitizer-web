@@ -54,6 +54,7 @@
     </header>
 
     <div class="card">
+        <button class="btn scan-cta" id="btn-scan" hidden><span aria-hidden="true">📷</span> <b id="btn-scan-label"></b></button>
       <div class="reading-preview">
         <span class="big" id="preview-sys">120</span><span class="slash">/</span><span class="big" id="preview-dia">80</span>
         <span class="unit">mmHg</span>
@@ -89,7 +90,6 @@
 
       <div class="actions">
         <button class="btn" id="btn-save"></button>
-        <button class="link" id="btn-scan" hidden>📷</button>
         <button class="link" id="btn-cancel"></button>
         <input type="file" id="scan-file" accept="image/*" capture="environment" hidden>
       </div>

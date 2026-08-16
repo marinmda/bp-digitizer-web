@@ -126,3 +126,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   font-size:.86rem;box-shadow:var(--shadow);z-index:10;max-width:88vw;text-align:center}
 .toast[hidden]{display:none}
 .foot{margin-top:22px;color:var(--muted);font-size:.74rem;text-align:center}
+
+/* Scanning is the fastest way in, so it reads as an action rather than an
+   emoji tucked beside Save. Full width above the preview: tap, correct, save. */
+.scan-cta{width:100%;margin-bottom:14px;display:flex;align-items:center;
+  justify-content:center;gap:8px}

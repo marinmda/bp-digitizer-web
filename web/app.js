@@ -483,7 +483,7 @@ function renderSettings() {
   renderServerSection();
   $('s-lang').addEventListener('change', async (e) => {
     await setLocale(e.target.value);
-    applyStatic(); renderSettings(); refresh();
+    applyStatic(); renderSettings(); refresh(); updateScanButton();
   });
   $('s-json').addEventListener('click', exportJson);
   $('s-csv').addEventListener('click', exportCsv);
@@ -623,7 +623,10 @@ async function configureReminders() {
 /* ------------------------------------------------------------- camera --- */
 function updateScanButton() {
   const btn = $('btn-scan');
-  if (btn) btn.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
+  if (!btn) return;
+  btn.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
+  const label = $('btn-scan-label');
+  if (label) label.textContent = t('dashboard_cd_scan');
 }
 
 async function scanPhoto(file) {
