@@ -44,15 +44,18 @@ async function api(path, opts = {}) {
 
 /* Is a server present at all, and is this device linked to it? */
 export async function probe() {
+  state.lastError = null;
+  state.probeRan = (state.probeRan || 0) + 1;
   try {
     const h = await api('/api/health');
     state.present = true;
     state.serverFeatures = { ocr: !!h.ocr, ocrLimit: h.ocr_daily_limit };
-  } catch {
+  } catch (e) {
     // Unreachable server: report absence, but do not forget that this device
     // is linked -- that is only ever decided by a 401 below.
     state.present = false;
     state.checked = true;
+    state.lastError = 'health: ' + (e && e.message);
     return state;
   }
   try {
@@ -62,6 +65,7 @@ export async function probe() {
     state.features = me.features || {};
     state.device = me.device;
   } catch (e) {
+    state.lastError = `me: ${e.message} (status ${e.status})`;
     // Only a 401 is proof of not being linked. Any other failure (offline,
     // 502, DNS) leaves the previous answer standing.
     if (e.status === 401) { state.linked = false; remember(false); }

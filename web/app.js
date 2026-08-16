@@ -539,7 +539,12 @@ async function renderServerSection() {
           font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">
         <button class="btn" id="s-link">${esc(t('settings_server_link'))}</button>
       </div>
-      <p class="err" id="s-code-err" hidden></p>`;
+      <p class="err" id="s-code-err" hidden></p>
+      <p style="font-size:.72rem;color:var(--muted);margin-top:10px;
+         font-family:ui-monospace,Menlo,monospace">diag · probes=${srv.state.probeRan || 0}
+        checked=${srv.state.checked} present=${srv.state.present}
+        linked=${srv.state.linked} hint=${localStorage.getItem('bp.server.linked')}
+        err=${esc(String(srv.state.lastError))}</p>`;
     $('s-link').addEventListener('click', async () => {
       const err = $('s-code-err'); err.hidden = true;
       try {
