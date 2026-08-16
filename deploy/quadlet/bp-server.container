@@ -1,0 +1,21 @@
+[Unit]
+Description=BP Digitizer optional server (OCR, encrypted backup, reminders)
+After=network-online.target
+Wants=network-online.target
+
+[Container]
+Image=localhost/bp-server:latest
+ContainerName=bp-server
+PublishPort=127.0.0.1:8094:8000
+Volume=bp-server-data:/data
+EnvironmentFile=%h/.config/bp/bp.env
+Environment=DATA_DIR=/data
+NoNewPrivileges=true
+DropCapability=ALL
+
+[Service]
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target

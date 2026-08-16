@@ -7,6 +7,7 @@
 import * as db from './db.js';
 import * as bp from './bp.js';
 import { t, plural, load as loadLocale, setLocale, locale, LOCALES, fmtDate } from './i18n.js';
+import * as srv from './server.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
@@ -471,10 +472,13 @@ function renderSettings() {
       <input type="file" id="s-file" accept=".json,.csv" hidden>
     </div>
     <p class="muted" style="margin-top:10px">${esc(t('settings_local_only_note'))}</p>
+    <h2 style="margin:22px 0 8px">${esc(t('settings_server_title'))}</h2>
+    <div id="s-server"></div>
     <h2 style="margin:22px 0 8px">${esc(t('settings_danger_zone'))}</h2>
     <button class="link" id="s-wipe" style="color:var(--z-crisis)">${
       esc(t('settings_delete_all'))}</button>`;
 
+  renderServerSection();
   $('s-lang').addEventListener('change', async (e) => {
     await setLocale(e.target.value);
     applyStatic(); renderSettings(); refresh();
@@ -492,6 +496,120 @@ function renderSettings() {
     toast(t('settings_deleted_all'));
     show('dashboard'); refresh();
   });
+}
+
+/* ------------------------------------------------------ server features -- */
+function renderServerSection() {
+  const box = $('s-server');
+  if (!box) return;
+  if (srv.state.present === false) {
+    box.innerHTML = `<p class="muted">${esc(t('settings_server_absent'))}</p>`;
+    return;
+  }
+  if (!srv.state.linked) {
+    box.innerHTML = `
+      <p class="muted">${esc(t('settings_server_locked'))}</p>
+      <div class="actions" style="margin-top:8px">
+        <input id="s-code" placeholder="ABCD-EFGH-JKLM" style="flex:1;font:inherit;
+          padding:10px 12px;border-radius:11px;border:1px solid var(--border);
+          background:var(--bg);color:var(--text);text-transform:uppercase;
+          font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">
+        <button class="btn" id="s-link">${esc(t('settings_server_link'))}</button>
+      </div>
+      <p class="err" id="s-code-err" hidden></p>`;
+    $('s-link').addEventListener('click', async () => {
+      const err = $('s-code-err'); err.hidden = true;
+      try {
+        await srv.redeem($('s-code').value);
+        toast(t('settings_server_linked'));
+        renderServerSection();
+        updateScanButton();
+      } catch (e) { err.textContent = e.message; err.hidden = false; }
+    });
+    return;
+  }
+
+  const f = srv.state.serverFeatures || {};
+  box.innerHTML = `
+    <p class="muted">${esc(t('settings_server_linked_as', srv.state.device?.label || '—'))}</p>
+    <div class="actions" style="flex-wrap:wrap;margin-top:10px">
+      <button class="btn" id="s-backup">${esc(t('settings_backup_now'))}</button>
+      <button class="link" id="s-restore">${esc(t('settings_restore'))}</button>
+      <button class="link" id="s-reminders">${esc(t('settings_reminders'))}</button>
+    </div>
+    <p class="muted" id="s-backup-info" style="margin-top:8px"></p>
+    <p class="muted" style="margin-top:8px">${esc(
+      f.ocr ? t('settings_ocr_available', f.ocrLimit) : t('settings_ocr_unconfigured'))}</p>`;
+
+  srv.backupInfo().then((i) => {
+    $('s-backup-info').textContent = i.exists
+      ? t('settings_backup_exists', i.readings ?? '?', fmtDate(Date.parse(i.updated_at)))
+      : t('settings_backup_none');
+  }).catch(() => {});
+
+  $('s-backup').addEventListener('click', async () => {
+    const pass = prompt(t('settings_backup_passphrase'));
+    if (!pass) return;
+    try {
+      await srv.backup(pass, {
+        readings: await db.allReadings(), profile: await db.getKV('profile'),
+      });
+      toast(t('settings_backup_done'));
+      renderServerSection();
+    } catch (e) { toast(e.message); }
+  });
+
+  $('s-restore').addEventListener('click', async () => {
+    const pass = prompt(t('settings_restore_passphrase'));
+    if (!pass) return;
+    try {
+      const data = await srv.restore(pass);
+      const { added, skipped } = await db.importReadings(data.readings || []);
+      if (data.profile) await db.setKV('profile', data.profile);
+      toast(t('dashboard_snack_imported', added));
+      refresh();
+    } catch (e) {
+      toast(e.code === 'wrong-passphrase' ? t('settings_restore_wrong') : e.message);
+    }
+  });
+
+  $('s-reminders').addEventListener('click', configureReminders);
+}
+
+async function configureReminders() {
+  let current = { times: '', enabled: 0 };
+  try { current = await srv.getReminders(); } catch { /* none yet */ }
+  const input = prompt(t('settings_reminders_prompt'), current.times || '08:00,20:00');
+  if (input === null) return;
+  const times = input.split(',').map((x) => x.trim()).filter(Boolean);
+  try {
+    await srv.subscribePush();
+    await srv.setReminders(times, times.length > 0);
+    toast(times.length ? t('settings_reminders_set', times.join(', '))
+                       : t('settings_reminders_off'));
+  } catch (e) {
+    toast(e.message === 'permission-denied' ? t('settings_reminders_denied') : e.message);
+  }
+}
+
+/* ------------------------------------------------------------- camera --- */
+function updateScanButton() {
+  const btn = $('btn-scan');
+  if (btn) btn.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
+}
+
+async function scanPhoto(file) {
+  toast(t('capture_reading'));
+  try {
+    const r = await srv.readMonitor(file);
+    if (r.systolic == null || r.diastolic == null) { toast(t('validation_error_sys_dia')); return; }
+    await openEntry(null);
+    $('in-sys').value = r.systolic;
+    $('in-dia').value = r.diastolic;
+    if (r.pulse) $('in-pulse').value = r.pulse;
+    syncPreview();
+    toast(t('capture_check_values'));
+  } catch (e) { toast(e.message); }
 }
 
 /* ---------------------------------------------------------------- boot --- */
@@ -528,6 +646,11 @@ function wire() {
   $('btn-profile-back').addEventListener('click', () => show('dashboard'));
   $('btn-settings-back').addEventListener('click', () => show('dashboard'));
   $('btn-save').addEventListener('click', saveReading);
+  $('btn-scan').addEventListener('click', () => $('scan-file').click());
+  $('scan-file').addEventListener('change', (e) => {
+    if (e.target.files[0]) scanPhoto(e.target.files[0]);
+    e.target.value = '';
+  });
   for (const id of ['in-sys', 'in-dia', 'in-pulse']) {
     $(id).addEventListener('input', syncPreview);
   }
@@ -541,6 +664,17 @@ async function boot() {
   state.mode = (await db.getKV('chartMode')) || 'trend';
   await refresh();
   show('dashboard');
+  // Probing is deliberately after first paint: a missing or slow server must
+  // never delay an app that does not need one.
+  srv.probe().then(() => { updateScanButton(); }).catch(() => {});
+  const code = new URLSearchParams(location.search).get('code');
+  if (code) {
+    srv.redeem(code).then(() => {
+      history.replaceState({}, '', '/');
+      toast(t('settings_server_linked'));
+      updateScanButton();
+    }).catch(() => {});
+  }
   if ('serviceWorker' in navigator) {
     try { await navigator.serviceWorker.register('/sw.js'); } catch { /* offline still fine */ }
   }

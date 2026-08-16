@@ -29,9 +29,21 @@ An optional server adds three things, each of which you can decline:
 | Encrypted backup | somewhere to store an opaque blob | recovery if the browser's storage is cleared |
 | Reminders | web push | a nudge at the times you choose |
 
-The server never sees a reading in the clear: backups are encrypted in the
-browser with a key derived from your passphrase, and OCR receives an image and
-returns numbers without storing either.
+Server features are gated by a code you generate (`./admin.sh invite "Ana"`),
+because OCR costs money and backups cost storage. **The gate covers only those
+three features** — the app itself never asks for a code.
+
+The server never sees a reading in the clear. Backups are encrypted in the
+browser with AES-GCM under a key derived from your passphrase by PBKDF2
+(310,000 iterations); the server stores ciphertext, a salt and an IV, and
+cannot recover your data if you forget the passphrase — which is the point.
+Verified: the stored blob contains no plaintext field names, and a wrong
+passphrase is rejected by AES-GCM's own authentication rather than silently
+producing garbage.
+
+The OCR daily limit lives in the database, not in `localStorage` as the
+Android app's does — on the web that counter would be editable in devtools,
+and the calls cost real money.
 
 ## What it does
 
