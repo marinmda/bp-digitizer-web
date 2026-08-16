@@ -13,6 +13,8 @@ self.addEventListener('install', (e) => {
     await c.addAll(SHELL);
     // Locales are fetched on demand; pre-cache only the ones likely needed.
     await c.addAll(['/i18n/en.json']).catch(() => {});
+    // Take over immediately; combined with controllerchange in the page this
+    // turns a deploy into a single automatic reload.
     self.skipWaiting();
   })());
 });
@@ -26,6 +28,39 @@ self.addEventListener('activate', (e) => {
   })());
 });
 
+/* Two strategies, chosen by whether the URL can go stale.
+
+   Assets requested with ?v=<hash> are immutable -- a new build is a new URL --
+   so those are cache-first. Everything else, the HTML above all, is
+   network-first: cache-first HTML means a refresh serves yesterday's page,
+   which then asks for yesterday's script, and the app only updates on the
+   *second* reload. That is the trap this used to fall into. */
+const immutable = (url) => url.searchParams.has('v');
+
+async function networkFirst(req, cache) {
+  try {
+    const res = await fetch(req);
+    if (res.ok) cache.put(req, res.clone());
+    return res;
+  } catch (err) {
+    const hit = await cache.match(req) || await cache.match(new URL(req.url).pathname);
+    if (hit) return hit;
+    if (req.mode === 'navigate') {
+      const shell = await cache.match('/index.html');
+      if (shell) return shell;
+    }
+    throw err;
+  }
+}
+
+async function cacheFirst(req, cache) {
+  const hit = await cache.match(req);
+  if (hit) return hit;
+  const res = await fetch(req);
+  if (res.ok) cache.put(req, res.clone());
+  return res;
+}
+
 self.addEventListener('fetch', (e) => {
   const req = e.request;
   if (req.method !== 'GET') return;
@@ -34,16 +69,7 @@ self.addEventListener('fetch', (e) => {
   if (url.pathname.startsWith('/api/')) return;      // never cache the server
   e.respondWith((async () => {
     const cache = await caches.open(CACHE);
-    const hit = await cache.match(req);
-    if (hit) return hit;
-    try {
-      const res = await fetch(req);
-      if (res.ok) cache.put(req, res.clone());
-      return res;
-    } catch (err) {
-      if (req.mode === 'navigate') return cache.match('/index.html');
-      throw err;
-    }
+    return (immutable(url) ? cacheFirst : networkFirst)(req, cache);
   })());
 });
 

@@ -4,7 +4,19 @@
    only the static directory. */
 'use strict';
 
-export const state = { linked: false, features: {}, checked: false, present: null };
+const HINT = 'bp.server.linked';
+export const state = {
+  // Seeded from the last confirmed probe. The server still decides -- every
+  // privileged call is authorised by cookie -- but starting from the last
+  // known answer stops a slow network from rendering "enter a code" at
+  // someone who is already linked.
+  linked: localStorage.getItem(HINT) === '1',
+  features: {}, checked: false, present: null,
+};
+
+function remember(linked) {
+  try { localStorage.setItem(HINT, linked ? '1' : '0'); } catch { /* private mode */ }
+}
 
 // Memoised so every caller shares one round trip, and so a view rendered
 // before boot's probe finishes can await the same answer rather than
@@ -32,25 +44,30 @@ async function api(path, opts = {}) {
 
 /* Is a server present at all, and is this device linked to it? */
 export async function probe() {
-  state.checked = true;
   try {
     const h = await api('/api/health');
     state.present = true;
     state.serverFeatures = { ocr: !!h.ocr, ocrLimit: h.ocr_daily_limit };
   } catch {
+    // Unreachable server: report absence, but do not forget that this device
+    // is linked -- that is only ever decided by a 401 below.
     state.present = false;
-    state.linked = false;
+    state.checked = true;
     return state;
   }
   try {
     const me = await api('/api/me');
     state.linked = true;
+    remember(true);
     state.features = me.features || {};
     state.device = me.device;
   } catch (e) {
-    state.linked = false;
-    if (e.status !== 401) state.present = false;
+    // Only a 401 is proof of not being linked. Any other failure (offline,
+    // 502, DNS) leaves the previous answer standing.
+    if (e.status === 401) { state.linked = false; remember(false); }
+    else state.present = false;
   }
+  state.checked = true;
   return state;
 }
 

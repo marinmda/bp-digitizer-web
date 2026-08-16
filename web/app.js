@@ -507,9 +507,9 @@ async function renderServerSection() {
   // unlinked on every refresh.
   if (!srv.state.checked) {
     box.innerHTML = `<p class="muted">${esc(t('settings_server_checking'))}</p>`;
-    try { await srv.ready(); } catch { /* falls through to absent */ }
-    if ($('s-server') !== box) return;      // user navigated away meanwhile
   }
+  try { await srv.ready(); } catch { /* falls through to absent */ }
+  if ($('s-server') !== box) return;        // user navigated away meanwhile
   if (srv.state.present === false) {
     box.innerHTML = `<p class="muted">${esc(t('settings_server_absent'))}</p>`;
     return;
@@ -676,15 +676,30 @@ async function boot() {
   // never delay an app that does not need one.
   srv.ready().then(() => { updateScanButton(); }).catch(() => {});
   const code = new URLSearchParams(location.search).get('code');
+  // Only redeem when not already linked: re-opening the invite link
+  // otherwise rotates the device token on every visit for no reason.
   if (code) {
-    srv.redeem(code).then(() => {
+    srv.ready().then((st) => (st.linked ? null : srv.redeem(code))).then(() => {
       history.replaceState({}, '', '/');
       toast(t('settings_server_linked'));
       updateScanButton();
     }).catch(() => {});
   }
   if ('serviceWorker' in navigator) {
-    try { await navigator.serviceWorker.register('/sw.js'); } catch { /* offline still fine */ }
+    try {
+      // updateViaCache:'none' keeps the browser's HTTP cache out of the
+      // worker's own update check, and update() asks on every load. Without
+      // this a stale worker can serve an old build indefinitely, which makes
+      // any deployed fix look like it never shipped.
+      const reg = await navigator.serviceWorker.register('/sw.js', { updateViaCache: 'none' });
+      reg.update().catch(() => {});
+      let reloading = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (reloading) return;      // controllerchange can fire more than once
+        reloading = true;
+        location.reload();
+      });
+    } catch { /* the app works offline without one */ }
   }
 }
 boot();
