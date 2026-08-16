@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>BP Digitizer</title>
+<meta name="description" content="Log, chart and export blood pressure readings. Local-first: your readings stay on your device.">
+<meta name="theme-color" content="#b3261e">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/icons/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BP Digitizer">
+<link rel="stylesheet" href="/app.css?v=__BUILD_VERSION__">
+</head>
+<body>
+
+<div class="wrap">
+
+  <!-- dashboard ----------------------------------------------------------->
+  <section class="view" id="view-dashboard">
+    <header class="hero">
+      <div>
+        <h1 id="hero-title">BP Digitizer</h1>
+        <p class="sub" id="hero-sub"></p>
+      </div>
+      <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙</button>
+    </header>
+
+    <div class="card risk" id="risk-card" hidden></div>
+
+    <div class="card chart-card">
+      <div class="chips" id="range-chips"></div>
+      <div class="chips" id="mode-chips"></div>
+      <div class="chart-wrap">
+        <svg id="chart" role="img"></svg>
+        <div class="readout" id="readout" hidden></div>
+      </div>
+      <div class="legend" id="legend"></div>
+    </div>
+
+    <div class="list-head">
+      <h2 id="history-title"></h2>
+      <span class="muted" id="history-count"></span>
+    </div>
+    <div class="list" id="history"></div>
+  </section>
+
+  <!-- add reading --------------------------------------------------------->
+  <section class="view" id="view-add" hidden>
+    <header class="hero">
+      <button class="icon-btn" id="btn-add-back" aria-label="Back">←</button>
+      <h1 id="add-title"></h1>
+    </header>
+
+    <div class="card">
+      <div class="reading-preview">
+        <span class="big" id="preview-sys">120</span><span class="slash">/</span><span class="big" id="preview-dia">80</span>
+        <span class="unit">mmHg</span>
+        <span class="cat-badge" id="preview-cat"></span>
+      </div>
+
+      <label class="slider-row">
+        <span class="slider-label"><span id="lbl-sys"></span><b id="val-sys">120</b></span>
+        <input type="range" id="in-sys" min="60" max="250" step="1" value="120">
+      </label>
+      <label class="slider-row">
+        <span class="slider-label"><span id="lbl-dia"></span><b id="val-dia">80</b></span>
+        <input type="range" id="in-dia" min="35" max="150" step="1" value="80">
+      </label>
+      <label class="slider-row">
+        <span class="slider-label"><span id="lbl-pulse"></span><b id="val-pulse">70</b></span>
+        <input type="range" id="in-pulse" min="30" max="200" step="1" value="70">
+      </label>
+
+      <div class="hemo" id="hemo"></div>
+
+      <div class="field">
+        <label id="lbl-when"></label>
+        <input type="datetime-local" id="in-when">
+      </div>
+
+      <div class="tags" id="tag-picker"></div>
+
+      <div class="field">
+        <label id="lbl-notes"></label>
+        <textarea id="in-notes" rows="2"></textarea>
+      </div>
+
+      <div class="actions">
+        <button class="btn" id="btn-save"></button>
+        <button class="link" id="btn-cancel"></button>
+      </div>
+    </div>
+  </section>
+
+  <!-- profile ------------------------------------------------------------->
+  <section class="view" id="view-profile" hidden>
+    <header class="hero">
+      <button class="icon-btn" id="btn-profile-back" aria-label="Back">←</button>
+      <h1 id="profile-title"></h1>
+    </header>
+    <div class="card" id="profile-form"></div>
+  </section>
+
+  <!-- settings ------------------------------------------------------------>
+  <section class="view" id="view-settings" hidden>
+    <header class="hero">
+      <button class="icon-btn" id="btn-settings-back" aria-label="Back">←</button>
+      <h1 id="settings-title"></h1>
+    </header>
+    <div class="card" id="settings-body"></div>
+  </section>
+
+  <p class="foot" id="foot"></p>
+</div>
+
+<nav class="tabbar" id="tabbar">
+  <button class="tab" data-view="dashboard" aria-current="page"><span>📈</span><b id="tab-home"></b></button>
+  <button class="tab primary" data-view="add"><span>＋</span><b id="tab-add"></b></button>
+  <button class="tab" data-view="profile"><span>👤</span><b id="tab-profile"></b></button>
+</nav>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module" src="/app.js?v=__BUILD_VERSION__"></script>
+</body>
+</html>
