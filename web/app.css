@@ -283,6 +283,15 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .fab.small svg{width:30px;height:30px}
 .fab:hover{filter:brightness(1.04)}
 
+/* Unreadable-scan banner on the entry screen. Tonal rather than alarming: the
+   scan failed, but the screen it sits on is perfectly usable. */
+.scan-err[hidden]{display:none}
+.scan-err{display:flex;align-items:center;gap:12px;flex-wrap:wrap;
+  background:var(--accent-soft);color:var(--text);border-radius:14px;
+  padding:12px 14px;margin-bottom:12px;font-size:.875rem;line-height:1.4}
+.scan-err span{flex:1;min-width:140px}
+.scan-err .btn{flex:none}
+
 /* --- scan progress overlay (ProcessingOverlay) --------------------------- */
 .scanning[hidden]{display:none}
 .scanning{position:fixed;inset:0;z-index:60;display:grid;place-items:center;background:#000}

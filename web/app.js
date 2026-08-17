@@ -578,6 +578,7 @@ async function openEntry(existing) {
   $('in-notes').value = existing?.notes || '';
   renderTagPicker();
   syncPreview();
+  $('add-error').hidden = true;      // a fresh entry carries no scan failure
   show('add');
 }
 
@@ -1151,7 +1152,17 @@ async function scanPhoto(file) {
   try {
     const r = await srv.readMonitor(file, ctrl.signal);
     finish();
-    if (r.systolic == null || r.diastolic == null) { toast(t('validation_error_sys_dia')); return; }
+    if (r.systolic == null || r.diastolic == null) {
+      // A photo the model could not read is not a dead end: open manual entry
+      // anyway, seeded from the last reading as it always is, and say what
+      // happened there rather than in a toast that vanishes. Retaking is one
+      // tap from the same screen.
+      await openEntry(null);
+      $('add-error-text').textContent = t('capture_error_unreadable');
+      $('add-retake').textContent = t('validation_retake');
+      $('add-error').hidden = false;
+      return;
+    }
     await openEntry(null);
     $('in-sys').value = r.systolic;
     $('in-dia').value = r.diastolic;
@@ -1336,6 +1347,7 @@ function wire() {
     }
   });
   $('btn-add-back').addEventListener('click', () => show('dashboard'));
+  $('add-retake').addEventListener('click', () => $('scan-file').click());
   $('btn-cancel').addEventListener('click', () => show('dashboard'));
   $('btn-profile-back').addEventListener('click', () => show('dashboard'));
   $('btn-settings-back').addEventListener('click', () => show('dashboard'));

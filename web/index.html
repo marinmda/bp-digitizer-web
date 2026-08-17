@@ -55,6 +55,13 @@
       <h1 id="add-title"></h1>
     </header>
 
+    <!-- Shown when a scan came back unreadable: the values below are the last
+         ones, so the screen is usable as manual entry either way. -->
+    <div class="scan-err" id="add-error" hidden>
+      <span id="add-error-text"></span>
+      <button class="btn" id="add-retake"></button>
+    </div>
+
     <div class="card">
       <div class="reading-preview">
         <span class="big" id="preview-sys">120</span><span class="slash">/</span><span class="big" id="preview-dia">80</span>
