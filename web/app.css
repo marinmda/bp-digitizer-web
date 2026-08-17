@@ -134,7 +134,7 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .toast{position:fixed;left:50%;transform:translateX(-50%);
   bottom:calc(var(--tab-h) + env(safe-area-inset-bottom) + 16px);
   background:var(--text);color:var(--bg);padding:11px 18px;border-radius:999px;
-  font-size:.86rem;box-shadow:var(--shadow);z-index:10;max-width:88vw;text-align:center}
+  font-size:.86rem;box-shadow:var(--shadow);z-index:30;max-width:88vw;text-align:center}
 .toast[hidden]{display:none}
 .foot{margin-top:22px;color:var(--muted);font-size:.74rem;text-align:center}
 
@@ -245,7 +245,11 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 #view-dashboard{padding-bottom:88px}
 .fabs[hidden]{display:none}
 .fabs{position:fixed;right:16px;display:flex;align-items:center;gap:12px;
-  bottom:calc(16px + env(safe-area-inset-bottom));z-index:20}
+  bottom:calc(16px + env(safe-area-inset-bottom));z-index:20;
+  transition:transform .18s ease}
+/* --snack is the height a visible toast needs; the column steps up by it so a
+   snackbar's action stays reachable, and settles back when the toast goes. */
+.fabs{transform:translateY(calc(-1 * var(--snack, 0px)))}
 .fab{border:0;cursor:pointer;display:grid;place-items:center;
   background:var(--primary-container);color:var(--on-primary-container);
   width:84px;height:84px;border-radius:24px;

@@ -43,6 +43,12 @@ const state = {
   mode: 'trend', editing: null, selectedTags: new Set(),
 };
 
+/* Hiding also releases the FAB column, which is lifted while a toast is up. */
+const hideToast = () => {
+  $('toast').hidden = true;
+  document.documentElement.style.removeProperty('--snack');
+};
+
 const toast = (msg, action) => {
   const el = $('toast');
   el.innerHTML = `<span>${esc(msg)}</span>`;
@@ -50,13 +56,17 @@ const toast = (msg, action) => {
     const b = document.createElement('button');
     b.className = 'toast-action';
     b.textContent = action.label;
-    b.addEventListener('click', () => { el.hidden = true; action.action(); });
+    b.addEventListener('click', () => { hideToast(); action.action(); });
     el.appendChild(b);
   }
   el.hidden = false;
+  // Material lifts the FAB above a snackbar rather than letting it cover one.
+  // Measured rather than assumed: the bar is one line or two depending on the
+  // message and the locale, and an Undo the user cannot reach is no Undo.
+  document.documentElement.style.setProperty('--snack', `${el.offsetHeight + 12}px`);
   clearTimeout(toast._t);
   // An undoable action gets longer to be acted on, as a snackbar would.
-  toast._t = setTimeout(() => { el.hidden = true; }, action ? 6000 : 2600);
+  toast._t = setTimeout(hideToast, action ? 6000 : 2600);
 };
 
 /* Hold a row to retag it -- the Android bottom sheet, as a sheet. */
