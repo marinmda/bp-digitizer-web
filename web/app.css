@@ -248,8 +248,8 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 /* --- stepper: minus, slider, plus ---------------------------------------- */
 .stepper{display:flex;align-items:center;gap:10px}
 .stepper input[type=range]{flex:1;min-width:0}
-.step{flex:0 0 40px;height:40px;border-radius:50%;border:1px solid var(--outline);
-  background:transparent;color:var(--text);font:inherit;font-size:1.35rem;
+.step{flex:0 0 60px;height:60px;border-radius:50%;border:1px solid var(--outline);
+  background:transparent;color:var(--text);font:inherit;font-size:2rem;
   line-height:1;cursor:pointer;display:grid;place-items:center;
   -webkit-user-select:none;user-select:none;touch-action:none}
 .step:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
