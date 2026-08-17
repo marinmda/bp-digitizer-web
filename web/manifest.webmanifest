@@ -1,7 +1,7 @@
 {
   "id": "/",
-  "name": "BP Digitizer",
-  "short_name": "BP Digitizer",
+  "name": "wBP Digitizer",
+  "short_name": "wBP Digitizer",
   "description": "Log, chart and export blood pressure readings. Local-first: your readings stay on your device.",
   "start_url": "/",
   "scope": "/",
@@ -10,11 +10,11 @@
   "theme_color": "#b3261e",
   "categories": ["health", "medical", "lifestyle"],
   "icons": [
-    { "src": "/icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-512.png", "sizes": "512x512", "type": "image/png" },
-    { "src": "/icons/maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+    { "src": "/icons/icon-192.png?v=__BUILD_VERSION__", "sizes": "192x192", "type": "image/png" },
+    { "src": "/icons/icon-512.png?v=__BUILD_VERSION__", "sizes": "512x512", "type": "image/png" },
+    { "src": "/icons/maskable-512.png?v=__BUILD_VERSION__", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Add reading", "url": "/?add=1", "icons": [{ "src": "/icons/icon-192.png", "sizes": "192x192" }] }
+    { "name": "Add reading", "url": "/?add=1", "icons": [{ "src": "/icons/icon-192.png?v=__BUILD_VERSION__", "sizes": "192x192" }] }
   ]
 }

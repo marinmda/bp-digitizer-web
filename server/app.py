@@ -1,4 +1,4 @@
-"""Optional server for BP Digitizer.
+"""Optional server for wBP Digitizer.
 
 Everything here is optional. The PWA is a static directory that works with no
 server at all; this adds three things a browser cannot do alone:
@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
         task.cancel()
 
 
-app = FastAPI(title="BP Digitizer server", default_response_class=ORJSONResponse,
+app = FastAPI(title="wBP Digitizer server", default_response_class=ORJSONResponse,
               lifespan=lifespan)
 
 
@@ -219,7 +219,7 @@ async def push_test(payload: dict = Body(default={}),
     if not sub.get("endpoint"):
         raise HTTPException(400, "Subscription required.")
     ok, status = await push.send(sub, {
-        "title": "BP Digitizer", "body": "Reminders are working.", "tag": "test"})
+        "title": "wBP Digitizer", "body": "Reminders are working.", "tag": "test"})
     return {"delivered": ok, "status": status}
 
 

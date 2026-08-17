@@ -1,4 +1,4 @@
-# BP Digitizer — web
+# wBP Digitizer — web
 
 Log, chart and export blood pressure readings. **Local-first**: readings live in
 your browser's IndexedDB and are never sent anywhere.

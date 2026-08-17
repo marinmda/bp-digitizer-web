@@ -1,8 +1,20 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#b3261e"/>
-  <path d="M96 300h68l30-72 40 128 34-96 26 40h122" fill="none" stroke="#fff"
-        stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="150" cy="170" r="16" fill="#fff" opacity=".55"/>
-  <circle cx="256" cy="150" r="16" fill="#fff" opacity=".8"/>
-  <circle cx="362" cy="182" r="16" fill="#fff" opacity=".55"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 108 108" width="108" height="108">
+  <!-- Rebuilt from the Android adaptive icon: ic_launcher_foreground.xml over
+       @color/ic_launcher_background. The artwork sits between 32 and 76 on a
+       108 canvas, so it clears the maskable safe zone (18-90) untouched. -->
+  <rect width="108" height="108" fill="#FAF3E3"/>
+
+  <!-- Camera scan brackets at the four corners of an inner frame. -->
+  <g fill="none" stroke="#5C5C5C" stroke-width="3.5"
+     stroke-linecap="round" stroke-linejoin="round">
+    <path d="M 32 44 L 32 32 L 44 32"/>
+    <path d="M 64 32 L 76 32 L 76 44"/>
+    <path d="M 32 64 L 32 76 L 44 76"/>
+    <path d="M 64 76 L 76 76 L 76 64"/>
+  </g>
+
+  <!-- Material heart, scaled 1.667x (24 -> 40) and centred at (54,54). -->
+  <g transform="translate(34,34) scale(1.667)">
+    <path fill="#8B2C2A" d="M12,21.35l-1.45,-1.32C5.4,15.36 2,12.28 2,8.5 2,5.42 4.42,3 7.5,3c1.74,0 3.41,0.81 4.5,2.09C13.09,3.81 14.76,3 16.5,3 19.58,3 22,5.42 22,8.5c0,3.78 -3.4,6.86 -8.55,11.54L12,21.35z"/>
+  </g>
 </svg>
