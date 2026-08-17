@@ -5,11 +5,18 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <title>wBP Digitizer</title>
 <meta name="description" content="Log, chart and export blood pressure readings. Local-first: your readings stay on your device.">
-<meta name="theme-color" content="#b3261e">
+<!-- The status bar takes this colour, so it tracks the page background rather
+     than the accent: a red band above a near-white app reads as an alert. Two
+     entries because the background differs by scheme; Chrome picks the light
+     or dark status-bar icons to suit whichever it resolves. -->
+<meta name="theme-color" content="#faf8f8" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#141212" media="(prefers-color-scheme: dark)">
 <link rel="manifest" href="/manifest.webmanifest?v=__BUILD_VERSION__">
 <link rel="icon" href="/icons/icon.svg?v=__BUILD_VERSION__" type="image/svg+xml">
 <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png?v=__BUILD_VERSION__">
 <meta name="apple-mobile-web-app-capable" content="yes">
+<!-- iOS has no media-scoped theme-color; default gives it dark-on-light. -->
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="apple-mobile-web-app-title" content="wBP Digitizer">
 <link rel="stylesheet" href="/app.css?v=__BUILD_VERSION__">
 </head>
