@@ -296,3 +296,28 @@ async def admin_revoke_invite(invite_id: int):
     if not await accounts.revoke_invite(invite_id):
         raise HTTPException(404, "no such unused invite")
     return {"revoked": invite_id}
+
+
+@app.post("/api/admin/devices/{device_id}/label", dependencies=[Depends(admin_only)])
+async def admin_label_device(device_id: int, payload: dict = Body(...)):
+    """A device's label comes from the invite that registered it, so it is
+    often the wrong name -- whoever the invite was minted for rather than
+    whoever redeemed it."""
+    label = (payload.get("label") or "").strip()[:60]
+    if not await accounts.rename_device(device_id, label):
+        raise HTTPException(404, "no such device")
+    return {"id": device_id, "label": label}
+
+
+@app.post("/api/admin/devices/prune", dependencies=[Depends(admin_only)])
+async def admin_prune_devices():
+    """Deletes revoked devices. Revoking is the reversible step; this is the
+    one that is not."""
+    return {"deleted": await accounts.prune_devices()}
+
+
+@app.post("/api/admin/invites/prune", dependencies=[Depends(admin_only)])
+async def admin_prune_invites():
+    """Drops invites that can no longer register anything -- used, or expired
+    unused. Pending ones are left alone by the query itself."""
+    return {"deleted": await accounts.prune_invites()}

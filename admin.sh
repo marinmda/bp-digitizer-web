@@ -24,6 +24,9 @@ usage: ./admin.sh <command>
   revoke <id>        lock a device out
   unrevoke <id>      let it back in
   forget <id>        delete a device
+  name <id> <label>  relabel a device
+  prune              delete every used and expired invite
+  prune-devices      delete every revoked device
 
 Each invite registers one device. A second phone needs a second invite.
 Within an hour of first use a code re-binds that same device rather than
@@ -41,5 +44,8 @@ case "${1:-}" in
   revoke)   post "/api/admin/devices/${2:?id}/revoke" '{"revoked":true}' | j ;;
   unrevoke) post "/api/admin/devices/${2:?id}/revoke" '{"revoked":false}' | j ;;
   forget)   curl -fsS --max-time 15 -X DELETE "$API/api/admin/devices/${2:?id}" | j ;;
+  name)     post "/api/admin/devices/${2:?id}/label" "{\"label\":\"${3:?label}\"}" | j ;;
+  prune)    post /api/admin/invites/prune | j ;;
+  prune-devices) post /api/admin/devices/prune | j ;;
   *) usage; exit 1 ;;
 esac
