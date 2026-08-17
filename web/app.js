@@ -878,10 +878,61 @@ function updateScanButton() {
   if (fab) fab.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
 }
 
+/* The scan overlay, ported from CaptureScreen's ProcessingOverlay. Reading a
+   monitor takes several seconds, and a screen that shows nothing invites a
+   refresh or a second attempt -- both of which spend the day's OCR quota for
+   nothing, since the first request is already on its way. So the photo stays
+   on screen under a scrim, a bar fills, and the status text advances, all of
+   which say "this is working" without promising a completion time.
+
+   The bar runs to 80% over eight seconds and then holds. It is honest about
+   what it knows: the server reports no progress, so the last stretch cannot be
+   claimed. The cancel button is the escape hatch -- the user is informed, not
+   trapped. */
+const OCR_STATUS = ['capture_status_sending', 'capture_status_reading',
+                    'capture_status_extracting', 'capture_status_almost'];
+const OCR_STATUS_AT = [2000, 5000, 8000];   // when messages 1..3 take over
+const OCR_FILL_MS = 8000;
+
 async function scanPhoto(file) {
-  toast(t('capture_reading'));
+  const box = $('scanning');
+  const bar = box.querySelector('.scan-bar i');
+  const url = URL.createObjectURL(file);
+  $('scan-shot').src = url;
+  $('scan-status').textContent = t(OCR_STATUS[0]);
+  $('scan-cancel').textContent = t('action_cancel');
+
+  bar.style.transition = 'none';
+  bar.style.width = '0%';
+  box.hidden = false;
+  // A frame between the reset and the target, or there is nothing to animate.
+  requestAnimationFrame(() => {
+    bar.style.transition = `width ${OCR_FILL_MS}ms linear`;
+    bar.style.width = '80%';
+  });
+
+  const timers = OCR_STATUS_AT.map((at, i) =>
+    setTimeout(() => { $('scan-status').textContent = t(OCR_STATUS[i + 1]); }, at));
+
+  const ctrl = new AbortController();
+  const cancel = () => ctrl.abort();
+  $('scan-cancel').addEventListener('click', cancel);
+  // Reloading mid-request abandons a scan that has already been paid for.
+  const guard = (e) => { e.preventDefault(); e.returnValue = ''; };
+  window.addEventListener('beforeunload', guard);
+
+  const finish = () => {
+    timers.forEach(clearTimeout);
+    window.removeEventListener('beforeunload', guard);
+    $('scan-cancel').removeEventListener('click', cancel);
+    box.hidden = true;
+    $('scan-shot').removeAttribute('src');
+    URL.revokeObjectURL(url);
+  };
+
   try {
-    const r = await srv.readMonitor(file);
+    const r = await srv.readMonitor(file, ctrl.signal);
+    finish();
     if (r.systolic == null || r.diastolic == null) { toast(t('validation_error_sys_dia')); return; }
     await openEntry(null);
     $('in-sys').value = r.systolic;
@@ -889,7 +940,11 @@ async function scanPhoto(file) {
     if (r.pulse) $('in-pulse').value = r.pulse;
     syncPreview();
     toast(t('capture_check_values'));
-  } catch (e) { toast(e.message); }
+  } catch (e) {
+    finish();
+    // Cancelling is a choice, not a failure; it needs no message.
+    if (e.name !== 'AbortError') toast(e.message);
+  }
 }
 
 /* ---------------------------------------------------------------- boot --- */

@@ -143,6 +143,17 @@
 </div>
 
 <input type="file" id="s-file-global" accept="application/json,text/csv,.json,.csv" hidden>
+<!-- Scan progress: the photo stays on screen under a scrim while the OCR
+     request is in flight. -->
+<div class="scanning" id="scanning" hidden>
+  <img id="scan-shot" alt="">
+  <div class="scan-card">
+    <div class="scan-bar"><i></i></div>
+    <p id="scan-status"></p>
+    <button class="link" id="scan-cancel"></button>
+  </div>
+</div>
+
 <div class="sheet" id="sheet" hidden></div>
 <div class="toast" id="toast" hidden></div>
 

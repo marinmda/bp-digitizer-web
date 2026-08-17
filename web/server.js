@@ -84,10 +84,13 @@ export async function redeem(code) {
 }
 
 /* ------------------------------------------------------------------ OCR -- */
-export async function readMonitor(file) {
+/* `signal` lets the caller abandon a scan. The upstream call still costs the
+   device its quota -- the server has already spent it by then -- but the user
+   gets their screen back, which is the point of the cancel button. */
+export async function readMonitor(file, signal) {
   const fd = new FormData();
   fd.append('image', file, file.name || 'photo.jpg');
-  return api('/api/ocr', { method: 'POST', body: fd });
+  return api('/api/ocr', { method: 'POST', body: fd, signal });
 }
 
 /* -------------------------------------------------- encrypted backup ----- */
