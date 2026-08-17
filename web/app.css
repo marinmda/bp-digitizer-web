@@ -1,10 +1,15 @@
 :root {
   --bg:#faf8f8; --surface:#fff; --border:#e6e0e0; --text:#1c1b1b; --muted:#5f5a5a;
   --accent:#b3261e; --accent-soft:#fdeceb;
-  --z-normal:#2e7d32; --z-elevated:#f9a825; --z-s1:#ef6c00; --z-s2:#d84315; --z-crisis:#b71c1c;
+  --z-normal:#2e7d32; --z-elevated:#f9a825; --z-s1:#ef6c00; --z-s2:#d32f2f; --z-crisis:#b71c1c;
+  /* Material 3 tonal roles, matching lightColorScheme() in Theme.kt */
+  --surface-variant:#e7e0ec; --on-surface-variant:#49454f;
+  --secondary-container:#e8def8; --on-secondary-container:#1d192b;
+  --primary-container:#f9dedc; --on-primary-container:#410e0b;
+  --outline:#79747e;
   --dia:#1565c0;
   --shadow:0 1px 2px rgba(28,27,27,.06), 0 8px 24px rgba(28,27,27,.07);
-  --tab-h:64px;
+  --tab-h:0px;
 }
 @media (prefers-color-scheme:dark){
   :root{
@@ -131,3 +136,115 @@ input[type=range]{width:100%;accent-color:var(--accent)}
    emoji tucked beside Save. Full width above the preview: tap, correct, save. */
 .scan-cta{width:100%;margin-bottom:14px;display:flex;align-items:center;
   justify-content:center;gap:8px}
+
+/* ===========================================================================
+   Material 3 surfaces, matching the Android app screen for screen.
+   =========================================================================== */
+
+/* --- top app bar: title plus the icon row from DashboardScreen ----------- */
+.appbar{display:flex;align-items:flex-start;gap:8px;margin:6px 0 4px;flex-wrap:wrap}
+.appbar h1{font-size:1.375rem;font-weight:500;margin:8px 0 4px;flex:1 0 100%;
+  letter-spacing:0}
+.appbar-actions{display:flex;flex-wrap:wrap;gap:2px;margin:0 -6px 4px auto}
+.appbar-actions .icon-btn{width:40px;height:40px;display:grid;place-items:center;
+  border-radius:50%;color:var(--on-surface-variant);padding:0}
+.appbar-actions .icon-btn:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
+
+/* --- filter chips (RangeChipRow) ---------------------------------------- */
+.chips{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:8px 0;
+  scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{font:inherit;font-size:.875rem;line-height:1;white-space:nowrap;cursor:pointer;
+  height:32px;padding:0 16px;border-radius:8px;border:1px solid var(--outline);
+  background:transparent;color:var(--text);display:inline-flex;align-items:center;gap:6px}
+.chip[aria-pressed="true"]{background:var(--secondary-container);
+  color:var(--on-secondary-container);border-color:transparent}
+.chip[aria-pressed="true"] svg{width:18px;height:18px;margin-left:-4px}
+.chip-spacer{flex:1 0 8px}
+
+/* --- segmented button (ChartModeToggle) --------------------------------- */
+.seg{display:flex;margin:0 0 8px;border-radius:20px;overflow:hidden;
+  border:1px solid var(--outline);width:fit-content}
+.seg button{font:inherit;font-size:.875rem;cursor:pointer;height:38px;padding:0 18px;
+  border:0;background:transparent;color:var(--text);display:inline-flex;
+  align-items:center;gap:6px}
+.seg button + button{border-left:1px solid var(--outline)}
+.seg button[aria-pressed="true"]{background:var(--secondary-container);
+  color:var(--on-secondary-container)}
+.seg button[aria-pressed="true"] svg{width:18px;height:18px;margin-left:-4px}
+
+.divider{border:0;border-top:1px solid color-mix(in srgb,var(--text) 12%,transparent);
+  margin:12px 0}
+
+/* --- tonal cards: Compose Card on surfaceVariant ------------------------ */
+.card.tonal{background:var(--surface-variant);color:var(--text);border:0;
+  border-radius:12px;box-shadow:none;padding:12px 16px}
+.card.tonal .card-head{display:flex;align-items:center;justify-content:space-between;
+  gap:8px}
+.card.tonal h3{font-size:.875rem;font-weight:500;margin:0}
+.card.tonal hr{border:0;border-top:1px solid color-mix(in srgb,var(--text) 12%,transparent);
+  margin:8px 0}
+.text-btn{font:inherit;font-size:.8125rem;font-weight:500;background:none;border:0;
+  color:var(--accent);cursor:pointer;padding:6px 8px;border-radius:8px}
+.text-btn:hover{background:color-mix(in srgb,var(--accent) 10%,transparent)}
+
+/* --- insights rows: tone dot aligned to the text cap height ------------- */
+.ins-row{display:flex;gap:10px;align-items:flex-start;margin:8px 0}
+.ins-dot{width:8px;height:8px;border-radius:50%;margin-top:6px;flex:0 0 8px}
+.ins-dot.POSITIVE{background:var(--z-normal)}
+.ins-dot.WATCH{background:var(--z-elevated)}
+.ins-dot.NEUTRAL{background:var(--muted)}
+.ins-row span{font-size:.875rem}
+
+/* --- reading rows: full-bleed, divided, like the LazyColumn ------------- */
+.list{margin:0 -16px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 16px;
+  border-bottom:1px solid color-mix(in srgb,var(--text) 12%,transparent);
+  background:var(--surface);position:relative;cursor:pointer}
+.row-main{flex:1;min-width:0}
+.row-time{font-size:.75rem;color:var(--muted)}
+.row-bp{font-size:1rem;font-weight:600;margin:1px 0}
+.row-hemo{font-size:.75rem;color:var(--muted)}
+.row-notes{font-size:.75rem;color:var(--muted);font-style:italic;margin-top:4px}
+.row-tags{font-size:.75rem;color:var(--accent);margin-top:4px}
+.badge{border-radius:999px;color:#fff;font-size:.6875rem;font-weight:500;
+  padding:2px 8px;white-space:nowrap}
+.empty{text-align:center;color:var(--muted);font-size:.875rem;padding:32px}
+
+/* --- floating action buttons -------------------------------------------- */
+.fabs[hidden]{display:none}
+.fabs{position:fixed;right:16px;display:flex;align-items:center;gap:12px;
+  bottom:calc(16px + env(safe-area-inset-bottom));z-index:20}
+.fab{border:0;cursor:pointer;display:grid;place-items:center;
+  background:var(--primary-container);color:var(--on-primary-container);
+  width:56px;height:56px;border-radius:16px;
+  box-shadow:0 3px 5px rgba(0,0,0,.16),0 1px 18px rgba(0,0,0,.12)}
+.fab.small{width:40px;height:40px;border-radius:12px}
+.fab.small svg{width:20px;height:20px}
+.fab:hover{filter:brightness(1.04)}
+
+/* --- dropdown menus (export, language) ---------------------------------- */
+.menu-wrap{position:relative}
+.menu{position:absolute;right:0;top:44px;min-width:180px;z-index:30;
+  background:var(--surface);border-radius:12px;padding:8px 0;
+  box-shadow:0 2px 6px rgba(0,0,0,.18),0 8px 24px rgba(0,0,0,.16)}
+.menu button{display:flex;align-items:center;gap:12px;width:100%;font:inherit;
+  font-size:.875rem;text-align:left;background:none;border:0;color:var(--text);
+  padding:12px 16px;cursor:pointer}
+.menu button:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
+.menu button svg{width:20px;height:20px;color:var(--accent)}
+
+/* --- snackbar with an action -------------------------------------------- */
+.toast{display:flex;align-items:center;gap:16px}
+.toast-action{font:inherit;font-size:.875rem;font-weight:600;background:none;
+  border:0;color:var(--accent-soft);cursor:pointer;padding:2px 4px}
+
+/* --- modal bottom sheet (tag editing) ----------------------------------- */
+.sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.32);
+  display:flex;align-items:flex-end;justify-content:center}
+.sheet[hidden]{display:none}
+.sheet-card{background:var(--surface);width:100%;max-width:720px;
+  border-radius:28px 28px 0 0;padding:20px 16px calc(28px + env(safe-area-inset-bottom));
+  display:flex;flex-direction:column;gap:12px}
+.sheet-card h3{margin:0;font-size:1rem;font-weight:600}
+.chips.wrap{flex-wrap:wrap;overflow:visible}

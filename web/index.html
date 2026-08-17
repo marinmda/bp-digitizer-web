@@ -19,30 +19,25 @@
 
   <!-- dashboard ----------------------------------------------------------->
   <section class="view" id="view-dashboard">
-    <header class="hero">
-      <div>
-        <h1 id="hero-title">BP Digitizer</h1>
-        <p class="sub" id="hero-sub"></p>
-      </div>
-      <button class="icon-btn" id="btn-settings" aria-label="Settings">⚙</button>
+    <header class="appbar">
+      <h1 id="hero-title">BP Digitizer</h1>
+      <div class="appbar-actions" id="appbar-actions"></div>
     </header>
 
-    <div class="card risk" id="risk-card" hidden></div>
-
-    <div class="card chart-card">
-      <div class="chips" id="range-chips"></div>
-      <div class="chips" id="mode-chips"></div>
-      <div class="chart-wrap">
-        <svg id="chart" role="img"></svg>
-        <div class="readout" id="readout" hidden></div>
-      </div>
-      <div class="legend" id="legend"></div>
+    <div class="chips" id="range-chips"></div>
+    <div class="seg" id="mode-chips"></div>
+    <div class="chart-wrap">
+      <svg id="chart" role="img"></svg>
+      <div class="readout" id="readout" hidden></div>
     </div>
+    <div class="legend" id="legend"></div>
 
-    <div class="list-head">
-      <h2 id="history-title"></h2>
-      <span class="muted" id="history-count"></span>
-    </div>
+    <hr class="divider">
+
+    <div class="card tonal" id="insights-card" hidden></div>
+    <div class="card tonal" id="risk-card" hidden></div>
+
+    <p class="empty" id="history-empty" hidden></p>
     <div class="list" id="history"></div>
   </section>
 
@@ -54,7 +49,6 @@
     </header>
 
     <div class="card">
-        <button class="btn scan-cta" id="btn-scan" hidden><span aria-hidden="true">📷</span> <b id="btn-scan-label"></b></button>
       <div class="reading-preview">
         <span class="big" id="preview-sys">120</span><span class="slash">/</span><span class="big" id="preview-dia">80</span>
         <span class="unit">mmHg</span>
@@ -118,12 +112,13 @@
   <p class="foot" id="foot"></p>
 </div>
 
-<nav class="tabbar" id="tabbar">
-  <button class="tab" data-view="dashboard" aria-current="page"><span>📈</span><b id="tab-home"></b></button>
-  <button class="tab primary" data-view="add"><span>＋</span><b id="tab-add"></b></button>
-  <button class="tab" data-view="profile"><span>👤</span><b id="tab-profile"></b></button>
-</nav>
+<div class="fabs">
+  <button class="fab small" id="fab-add"></button>
+  <button class="fab" id="fab-scan" hidden></button>
+</div>
 
+<input type="file" id="s-file-global" accept="application/json,text/csv,.json,.csv" hidden>
+<div class="sheet" id="sheet" hidden></div>
 <div class="toast" id="toast" hidden></div>
 
 <script type="module" src="/app.js?v=__BUILD_VERSION__"></script>

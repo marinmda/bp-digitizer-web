@@ -10,6 +10,9 @@ import * as db from './db.js';
 import * as bp from './bp.js';
 import { t, plural, load as loadLocale, setLocale, locale, LOCALES, fmtDate } from './i18n.js';
 import * as srv from './server.js';
+import { icon } from './icons.js';
+import { generateInsights } from './insights.js';
+import { collapseBursts } from './aggregate.js';
 
 const $ = (id) => document.getElementById(id);
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
@@ -45,12 +48,53 @@ const state = {
   mode: 'trend', editing: null, selectedTags: new Set(),
 };
 
-const toast = (msg) => {
+const toast = (msg, action) => {
   const el = $('toast');
-  el.textContent = msg; el.hidden = false;
+  el.innerHTML = `<span>${esc(msg)}</span>`;
+  if (action) {
+    const b = document.createElement('button');
+    b.className = 'toast-action';
+    b.textContent = action.label;
+    b.addEventListener('click', () => { el.hidden = true; action.action(); });
+    el.appendChild(b);
+  }
+  el.hidden = false;
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => { el.hidden = true; }, 2600);
+  // An undoable action gets longer to be acted on, as a snackbar would.
+  toast._t = setTimeout(() => { el.hidden = true; }, action ? 6000 : 2600);
 };
+
+/* Hold a row to retag it -- the Android bottom sheet, as a sheet. */
+function openTagEditor(id) {
+  const row = state.readings.find((r) => r.id === id);
+  if (!row) return;
+  const chosen = new Set(String(row.tags || '').split(',').filter(Boolean));
+  const sheet = $('sheet');
+  const draw = () => {
+    sheet.innerHTML = `
+      <div class="sheet-card">
+        <h3>${esc(t('edit_tags_title'))}</h3>
+        <div class="chips wrap">${TAGS.map((k) =>
+          `<button class="chip" aria-pressed="${chosen.has(k)}" data-tag="${k}">${
+            chosen.has(k) ? icon('check', 18) : ''}${esc(t(k))}</button>`).join('')}</div>
+        <button class="btn" id="sheet-save">${esc(t('action_save'))}</button>
+      </div>`;
+    sheet.querySelectorAll('[data-tag]').forEach((b) =>
+      b.addEventListener('click', () => {
+        const k = b.dataset.tag;
+        chosen.has(k) ? chosen.delete(k) : chosen.add(k);
+        draw();
+      }));
+    $('sheet-save').addEventListener('click', async () => {
+      await db.updateReading({ ...row, tags: [...chosen].join(',') });
+      sheet.hidden = true;
+      refresh();
+    });
+  };
+  draw();
+  sheet.hidden = false;
+  sheet.onclick = (e) => { if (e.target === sheet) sheet.hidden = true; };
+}
 
 /* ------------------------------------------------------------- routing -- */
 function show(view) {
@@ -58,10 +102,7 @@ function show(view) {
   for (const v of ['dashboard', 'add', 'profile', 'settings']) {
     $(`view-${v}`).hidden = v !== view;
   }
-  document.querySelectorAll('.tab').forEach((b) => {
-    if (b.dataset.view === view) b.setAttribute('aria-current', 'page');
-    else b.removeAttribute('aria-current');
-  });
+  document.querySelector('.fabs').hidden = view !== 'dashboard';
   window.scrollTo(0, 0);
 }
 
@@ -69,13 +110,43 @@ function show(view) {
 async function refresh() {
   state.readings = await db.allReadings();
   state.profile = (await db.getKV('profile')) || {};
+  renderInsights();
   renderRisk();
   renderChips();
   drawChart();
   renderHistory();
-  $('hero-sub').textContent = state.readings.length
-    ? `${state.readings.length}`
-    : t('dashboard_empty');
+}
+
+/* ------------------------------------------------------------- insights -- */
+/* Mirrors InsightsCard: title, divider, tone-dotted rows, collapsed to three
+   with a show-more toggle. */
+function renderInsights() {
+  const card = $('insights-card');
+  const all = generateInsights(state.readings);
+  if (!all.length) { card.hidden = true; return; }
+
+  const COLLAPSED = 3;
+  const visible = state.insightsOpen ? all : all.slice(0, COLLAPSED);
+  const line = (i) => {
+    // TAG_HIGHER / TAG_LOWER carry a tag key in args[0]; resolve it to a label.
+    const args = i.kind.startsWith('insight_tag') ? [t(i.args[0]), i.args[1]] : i.args;
+    return `<div class="ins-row"><span class="ins-dot ${i.tone}"></span>
+              <span>${esc(t(i.kind, ...args))}</span></div>`;
+  };
+  card.hidden = false;
+  card.innerHTML = `
+    <h3>${esc(t('insights_card_title'))}</h3>
+    <hr>
+    ${visible.map(line).join('')}
+    ${all.length > COLLAPSED ? `<div style="text-align:right">
+       <button class="text-btn" id="ins-more">${esc(state.insightsOpen
+         ? t('insights_show_less') : t('insights_show_more', all.length - COLLAPSED))}</button>
+     </div>` : ''}`;
+  const more = $('ins-more');
+  if (more) more.addEventListener('click', () => {
+    state.insightsOpen = !state.insightsOpen;
+    renderInsights();
+  });
 }
 
 function renderRisk() {
@@ -83,32 +154,49 @@ function renderRisk() {
   const latest = state.readings[0];
   if (!latest) { card.hidden = true; return; }
   const a = bp.assess(latest.systolic, latest.diastolic, state.profile);
+  const complete = !!state.profile.birthYear;
   card.hidden = false;
-  const det = [];
-  if (a.bmi != null) det.push(t('risk_card_bmi', a.bmi.toFixed(1), t(bmiKey(a.bmiCategory))));
-  det.push(`MAP ${a.map} · PP ${a.pulsePressure}`);
-  card.innerHTML =
-    `<span class="dot" style="background:${RISK_COLOR[a.risk]}"></span>
-     <div class="txt">
-       <div class="lvl" style="color:${RISK_COLOR[a.risk]}">${esc(t(RISK_KEY[a.risk]))}</div>
-       <div class="det">${esc(t(ZONE_KEY[a.category]))} · ${esc(det.join(' · '))}</div>
-     </div>
-     ${state.profile.birthYear ? '' :
-       `<button class="link" id="risk-complete">${esc(t('risk_card_setup_profile'))}</button>`}`;
-  const btn = $('risk-complete');
-  if (btn) btn.addEventListener('click', () => { show('profile'); renderProfile(); });
+  card.innerHTML = `
+    <div class="card-head">
+      <h3>${esc(t('risk_card_title'))}</h3>
+      <button class="text-btn" id="risk-profile">${esc(t(complete
+        ? 'risk_card_edit_profile' : 'risk_card_setup_profile'))}</button>
+    </div>
+    <hr>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span class="badge" style="background:${RISK_COLOR[a.risk]}">${
+        esc(t('risk_card_risk_badge', t(RISK_KEY[a.risk])))}</span>
+      <span style="font-size:.875rem;color:var(--on-surface-variant)">${
+        esc(t(ZONE_KEY[a.category]))}</span>
+    </div>
+    ${a.bmi != null ? `<p class="muted" style="margin:6px 0 0">${
+      esc(t('risk_card_bmi', a.bmi.toFixed(1), t(bmiKey(a.bmiCategory))))}</p>` : ''}
+    ${complete ? '' : `<p class="muted" style="margin:8px 0 0;font-style:italic">${
+      esc(t('risk_card_incomplete_profile'))}</p>`}`;
+  $('risk-profile').addEventListener('click', () => { renderProfile(); show('profile'); });
 }
 
 const bmiKey = (c) => ({ UNDERWEIGHT: 'bmi_underweight', NORMAL: 'bmi_normal',
   OVERWEIGHT: 'bmi_overweight', OBESE: 'bmi_obese' }[c] || 'bmi_normal');
 
 function renderChips() {
-  $('range-chips').innerHTML = RANGES.map((r) =>
-    `<button class="chip${r.d === state.rangeDays ? ' on' : ''}" data-d="${r.d}">${esc(t(r.key))}</button>`
-  ).join('');
-  $('mode-chips').innerHTML = ['trend', 'scatter'].map((m) =>
-    `<button class="chip${m === state.mode ? ' on' : ''}" data-m="${m}">${esc(t(m === 'trend' ? 'chart_view_trend' : 'chart_view_scatter'))}</button>`
-  ).join('');
+  const sel = (on) => (on ? icon('check', 18) : '');
+  $('range-chips').innerHTML = RANGES.map((r) => {
+    const on = r.d === state.rangeDays;
+    return `<button class="chip" aria-pressed="${on}" data-d="${r.d}">${sel(on)}${esc(t(r.key))}</button>`;
+  }).join('') + `<span class="chip-spacer"></span>
+    <button class="chip" aria-pressed="${!!state.smooth}" id="chip-smooth">${
+      sel(!!state.smooth)}${esc(t('dashboard_smooth_bursts'))}</button>`;
+  $('chip-smooth').addEventListener('click', () => {
+    state.smooth = !state.smooth;
+    db.setKV('smoothBursts', state.smooth);
+    renderChips(); drawChart();
+  });
+  $('mode-chips').innerHTML = ['trend', 'scatter'].map((m) => {
+    const on = m === state.mode;
+    return `<button aria-pressed="${on}" data-m="${m}">${sel(on)}${
+      esc(t(m === 'trend' ? 'chart_view_trend' : 'chart_view_scatter'))}</button>`;
+  }).join('');
   $('range-chips').querySelectorAll('[data-d]').forEach((b) =>
     b.addEventListener('click', () => {
       state.rangeDays = Number(b.dataset.d);
@@ -131,28 +219,81 @@ const inRange = () => {
 
 function renderHistory() {
   const rows = inRange();
-  $('history-title').textContent = t('nav_history');
-  $('history-count').textContent = rows.length ? String(rows.length) : '';
-  $('history').innerHTML = rows.length ? rows.map((r) => {
-    const bits = [fmtDate(r.timestamp)];
-    if (r.pulse) bits.push(t('dashboard_reading_pulse_format', r.pulse));
-    const tags = (r.tags || '').split(',').filter(Boolean).map((x) => t(x)).join(', ');
-    return `<div class="item">
-        <span class="zone" style="background:${ZONE_COLOR[r.category]}"></span>
-        <span class="val">${r.systolic}/${r.diastolic}<small>mmHg</small></span>
-        <span class="meta"><b>${esc(t(ZONE_KEY[r.category]))}</b>${esc(bits.join(' · '))}${
-          tags ? ' · ' + esc(tags) : ''}${r.notes ? '<br>' + esc(r.notes) : ''}</span>
-        <button class="link del" data-del="${r.id}" aria-label="${esc(t('dashboard_cd_delete'))}">✕</button>
-      </div>`;
-  }).join('') : `<p class="empty">${esc(t('dashboard_empty'))}</p>`;
+  const empty = $('history-empty');
+  empty.hidden = rows.length > 0;
+  empty.textContent = t('dashboard_empty');
 
-  $('history').querySelectorAll('[data-del]').forEach((b) =>
-    b.addEventListener('click', async () => {
-      if (!confirm(t('dashboard_delete_confirm'))) return;
-      await db.deleteReading(Number(b.dataset.del));
-      toast(t('dashboard_snack_deleted'));
-      refresh();
-    }));
+  // Mirrors ReadingRow: timestamp, the reading itself, haemodynamics, then the
+  // category badge on the right, with notes and tags underneath.
+  $('history').innerHTML = rows.map((r) => {
+    const pulse = r.pulse ? t('dashboard_reading_pulse_format', r.pulse) : '';
+    const tags = (r.tags || '').split(',').filter(Boolean).map((x) => t(x)).join(' · ');
+    return `<div class="row" data-id="${r.id}">
+        <div class="row-main">
+          <div class="row-time">${esc(fmtDate(r.timestamp))}</div>
+          <div class="row-bp">${r.systolic}/${r.diastolic}${esc(pulse)}</div>
+          <div class="row-hemo">${esc(t('reading_hemodynamics_format',
+            bp.meanArterialPressure(r.systolic, r.diastolic),
+            bp.pulsePressure(r.systolic, r.diastolic)))}</div>
+          ${r.notes ? `<div class="row-notes">${esc(r.notes)}</div>` : ''}
+          ${tags ? `<div class="row-tags">${esc(tags)}</div>` : ''}
+        </div>
+        <span class="badge" style="background:${ZONE_COLOR[r.category]}">${
+          esc(t(ZONE_KEY[r.category]))}</span>
+      </div>`;
+  }).join('');
+
+  $('history').querySelectorAll('.row').forEach(attachRowGestures);
+}
+
+/* Swipe a row aside to delete, hold it to edit its tags -- the two gestures
+   SwipeToDismissBox and detectTapGestures give the Android list. */
+function attachRowGestures(el) {
+  const id = Number(el.dataset.id);
+  let startX = 0, dx = 0, dragging = false, held = false, timer = null;
+
+  const reset = () => { el.style.transition = 'transform .18s'; el.style.transform = ''; };
+
+  el.addEventListener('pointerdown', (e) => {
+    if (e.button) return;
+    startX = e.clientX; dx = 0; dragging = true; held = false;
+    el.style.transition = '';
+    timer = setTimeout(() => { held = true; openTagEditor(id); }, 500);
+  });
+  el.addEventListener('pointermove', (e) => {
+    if (!dragging) return;
+    dx = e.clientX - startX;
+    if (Math.abs(dx) > 8) clearTimeout(timer);
+    el.style.transform = `translateX(${dx}px)`;
+  });
+  const end = async () => {
+    if (!dragging) return;
+    dragging = false; clearTimeout(timer);
+    // 56px is the positionalThreshold the Android SwipeToDismissBox uses.
+    if (Math.abs(dx) >= 56) {
+      el.style.transition = 'transform .18s, opacity .18s';
+      el.style.transform = `translateX(${dx > 0 ? '100%' : '-100%'})`;
+      el.style.opacity = '0';
+      await deleteWithUndo(id);
+    } else {
+      reset();
+      if (!held && Math.abs(dx) < 8) { openEntry(state.readings.find((r) => r.id === id)); }
+    }
+  };
+  el.addEventListener('pointerup', end);
+  el.addEventListener('pointercancel', () => { dragging = false; clearTimeout(timer); reset(); });
+}
+
+/* Delete now, restore from the toast -- the Android snackbar behaviour. */
+async function deleteWithUndo(id) {
+  const row = state.readings.find((r) => r.id === id);
+  if (!row) return;
+  await db.deleteReading(id);
+  await refresh();
+  toast(t('dashboard_snack_deleted'), {
+    label: t('dashboard_snack_undo'),
+    action: async () => { await db.updateReading({ ...row }); refresh(); },
+  });
 }
 
 /* ---------------------------------------------------------------- chart -- */
@@ -168,7 +309,8 @@ function drawChart() {
   const { W, H, PAD, ticks } = chartGeometry(svg);
   svg.setAttribute('viewBox', `0 0 ${W} ${H}`);
   svg.setAttribute('height', H);
-  const rows = inRange().slice().sort((a, b) => a.timestamp - b.timestamp);
+  let rows = inRange().slice().sort((a, b) => a.timestamp - b.timestamp);
+  if (state.smooth) rows = collapseBursts(rows);
   if (!rows.length) {
     svg.innerHTML = `<text x="${W / 2}" y="${H / 2}" text-anchor="middle" class="axis">${
       esc(t('chart_no_readings'))}</text>`;
@@ -539,12 +681,8 @@ async function renderServerSection() {
           font-family:ui-monospace,Menlo,monospace;letter-spacing:.06em">
         <button class="btn" id="s-link">${esc(t('settings_server_link'))}</button>
       </div>
-      <p class="err" id="s-code-err" hidden></p>
-      <p style="font-size:.72rem;color:var(--muted);margin-top:10px;
-         font-family:ui-monospace,Menlo,monospace">diag · probes=${srv.state.probeRan || 0}
-        checked=${srv.state.checked} present=${srv.state.present}
-        linked=${srv.state.linked} hint=${localStorage.getItem('bp.server.linked')}
-        err=${esc(String(srv.state.lastError))}</p>`;
+      <p class="err" id="s-code-err" hidden></p>`;
+
     $('s-link').addEventListener('click', async () => {
       const err = $('s-code-err'); err.hidden = true;
       try {
@@ -605,28 +743,67 @@ async function renderServerSection() {
 }
 
 async function configureReminders() {
+  // Reminders are delivered by the optional server, so without a link there is
+  // nothing to configure -- say so rather than failing mid-dialogue.
+  await srv.ready();
+  if (!srv.state.linked) { toast(t('settings_server_locked')); return; }
+
   let current = { times: '', enabled: 0 };
-  try { current = await srv.getReminders(); } catch { /* none yet */ }
-  const input = prompt(t('settings_reminders_prompt'), current.times || '08:00,20:00');
-  if (input === null) return;
-  const times = input.split(',').map((x) => x.trim()).filter(Boolean);
-  try {
-    await srv.subscribePush();
-    await srv.setReminders(times, times.length > 0);
-    toast(times.length ? t('settings_reminders_set', times.join(', '))
-                       : t('settings_reminders_off'));
-  } catch (e) {
-    toast(e.message === 'permission-denied' ? t('settings_reminders_denied') : e.message);
-  }
+  try { current = await srv.getReminders(); } catch { /* none set yet */ }
+  const [morning = '08:00', evening = '20:00'] =
+    String(current.times || '').split(',').map((x) => x.trim()).filter(Boolean);
+
+  const sheet = $('sheet');
+  const row = (label, desc, id, value) => `
+    <div style="display:flex;align-items:center;gap:12px;margin:14px 0">
+      <div style="flex:1">
+        <div style="font-size:.9375rem">${esc(t(label))}</div>
+        <div class="muted">${esc(t(desc))}</div>
+      </div>
+      <input type="time" id="${id}" value="${value}" style="font:inherit;
+        padding:8px 10px;border-radius:10px;border:1px solid var(--outline);
+        background:var(--bg);color:var(--text)">
+    </div>`;
+  sheet.innerHTML = `<div class="sheet-card" style="max-height:85vh;overflow:auto">
+      <h3>${esc(t('reminders_title'))}</h3>
+      <label style="display:flex;align-items:center;gap:12px">
+        <input type="checkbox" id="rm-on" ${current.enabled ? 'checked' : ''}
+               style="width:20px;height:20px;accent-color:var(--accent)">
+        <span style="flex:1">
+          <span style="font-size:.9375rem">${esc(t('reminders_enable_label'))}</span><br>
+          <span class="muted">${esc(t('reminders_enable_desc'))}</span>
+        </span>
+      </label>
+      <hr class="divider">
+      ${row('reminders_morning_label', 'reminders_morning_desc', 'rm-am', morning)}
+      ${row('reminders_evening_label', 'reminders_evening_desc', 'rm-pm', evening)}
+      <p class="muted" style="margin:4px 0 0">${esc(t('reminders_footer'))}</p>
+      <div class="actions" style="justify-content:flex-end;gap:8px;margin-top:8px">
+        <button class="text-btn" id="rm-cancel">${esc(t('action_cancel'))}</button>
+        <button class="btn" id="rm-ok">${esc(t('action_ok'))}</button>
+      </div>
+    </div>`;
+  sheet.hidden = false;
+  const close = () => { sheet.hidden = true; };
+  sheet.onclick = (e) => { if (e.target === sheet) close(); };
+  $('rm-cancel').addEventListener('click', close);
+  $('rm-ok').addEventListener('click', async () => {
+    const on = $('rm-on').checked;
+    const times = [$('rm-am').value, $('rm-pm').value].filter(Boolean);
+    close();
+    try {
+      if (on) await srv.subscribePush();
+      await srv.setReminders(times, on);
+      toast(on ? t('settings_reminders_set', times.join(', ')) : t('settings_reminders_off'));
+    } catch (e) {
+      toast(e.message === 'permission-denied' ? t('settings_reminders_denied') : e.message);
+    }
+  });
 }
 
-/* ------------------------------------------------------------- camera --- */
 function updateScanButton() {
-  const btn = $('btn-scan');
-  if (!btn) return;
-  btn.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
-  const label = $('btn-scan-label');
-  if (label) label.textContent = t('dashboard_cd_scan');
+  const fab = $('fab-scan');
+  if (fab) fab.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
 }
 
 async function scanPhoto(file) {
@@ -644,6 +821,73 @@ async function scanPhoto(file) {
 }
 
 /* ---------------------------------------------------------------- boot --- */
+/* The DashboardScreen top app bar: title, then reminders, profile, import,
+   export, help and language, in that order. */
+function renderAppbar() {
+  const box = $('appbar-actions');
+  const btn = (id, name, key) =>
+    `<button class="icon-btn" id="${id}" title="${esc(t(key))}" aria-label="${esc(t(key))}">${icon(name, 22)}</button>`;
+  box.innerHTML = `
+    ${btn('ab-reminders', 'bell', 'dashboard_cd_reminders')}
+    ${btn('ab-profile', 'person', 'dashboard_cd_profile')}
+    ${btn('ab-import', 'download', 'dashboard_cd_import')}
+    <span class="menu-wrap">
+      ${btn('ab-export', 'share', 'dashboard_cd_export')}
+      <div class="menu" id="menu-export" hidden>
+        <button id="mx-json">${icon('download', 20)}${esc(t('dashboard_export_json'))}</button>
+        <button id="mx-csv">${icon('download', 20)}${esc(t('dashboard_export_csv'))}</button>
+      </div>
+    </span>
+    ${btn('ab-help', 'help', 'dashboard_cd_help')}
+    <span class="menu-wrap">
+      ${btn('ab-lang', 'language', 'dashboard_cd_language')}
+      <div class="menu" id="menu-lang" hidden>${LOCALES.map((l) =>
+        `<button data-loc="${l}">${l === locale() ? icon('check', 20) : '<span style="width:20px"></span>'}${
+          esc(new Intl.DisplayNames([l], { type: 'language' }).of(l))}</button>`).join('')}</div>
+    </span>
+    ${btn('ab-settings', 'settings', 'settings_title')}`;
+
+  const toggle = (id) => {
+    const m = $(id);
+    const wasOpen = !m.hidden;
+    document.querySelectorAll('.menu').forEach((x) => { x.hidden = true; });
+    m.hidden = wasOpen;
+  };
+  $('ab-reminders').addEventListener('click', configureReminders);
+  $('ab-profile').addEventListener('click', () => { renderProfile(); show('profile'); });
+  $('ab-import').addEventListener('click', () => $('s-file-global').click());
+  $('ab-export').addEventListener('click', () => toggle('menu-export'));
+  $('mx-json').addEventListener('click', () => { $('menu-export').hidden = true; exportJson(); });
+  $('mx-csv').addEventListener('click', () => { $('menu-export').hidden = true; exportCsv(); });
+  $('ab-help').addEventListener('click', showHelp);
+  $('ab-lang').addEventListener('click', () => toggle('menu-lang'));
+  $('menu-lang').querySelectorAll('[data-loc]').forEach((b) =>
+    b.addEventListener('click', async () => {
+      await setLocale(b.dataset.loc);
+      applyStatic(); renderAppbar(); renderSettings(); refresh(); updateScanButton();
+    }));
+  $('ab-settings').addEventListener('click', () => { renderSettings(); show('settings'); });
+}
+
+/* Help is a screen in the Android app; here it is the same content in a sheet,
+   which keeps the back stack shallow on a page that has no system back. */
+function showHelp() {
+  const sheet = $('sheet');
+  const topics = ['camera', 'manual', 'trends', 'history', 'profile', 'risk',
+                  'hemo', 'reminders', 'export', 'import', 'insights']
+    .map((k) => [`help_${k}_title`, `help_${k}_body`]);
+  sheet.innerHTML = `<div class="sheet-card" style="max-height:80vh;overflow:auto">
+      <h2 style="margin:0">${esc(t('help_title'))}</h2>
+      ${topics.filter(([ti]) => t(ti) !== ti).map(([ti, bo]) =>
+        `<h3>${esc(t(ti))}</h3><p style="font-size:.875rem;margin:0;white-space:pre-line">${
+          esc(t(bo))}</p>`).join('')}
+      <button class="btn" id="help-close">${esc(t('action_cancel'))}</button>
+    </div>`;
+  sheet.hidden = false;
+  $('help-close').addEventListener('click', () => { sheet.hidden = true; });
+  sheet.onclick = (e) => { if (e.target === sheet) sheet.hidden = true; };
+}
+
 function applyStatic() {
   $('hero-title').textContent = t('app_name');
   $('add-title').textContent = t('validation_save');
@@ -656,28 +900,32 @@ function applyStatic() {
   $('lbl-notes').textContent = t('validation_notes_label');
   $('btn-save').textContent = t('action_save');
   $('btn-cancel').textContent = t('action_cancel');
-  $('tab-home').textContent = t('nav_dashboard');
-  $('tab-add').textContent = t('nav_add');
-  $('tab-profile').textContent = t('nav_profile');
   $('foot').textContent = t('settings_local_only_note');
   document.title = t('app_name');
 }
 
 function wire() {
-  document.querySelectorAll('.tab').forEach((b) =>
-    b.addEventListener('click', () => {
-      const v = b.dataset.view;
-      if (v === 'add') openEntry(null);
-      else if (v === 'profile') { renderProfile(); show('profile'); }
-      else show(v);
-    }));
-  $('btn-settings').addEventListener('click', () => { renderSettings(); show('settings'); });
+  $('fab-add').innerHTML = icon('edit');
+  $('fab-add').title = t('dashboard_cd_add_manually');
+  $('fab-scan').innerHTML = icon('camera');
+  $('fab-scan').title = t('dashboard_cd_scan');
+  $('fab-add').addEventListener('click', () => openEntry(null));
+  $('fab-scan').addEventListener('click', () => $('scan-file').click());
+  $('s-file-global').addEventListener('change', (e) => {
+    if (e.target.files[0]) importFile(e.target.files[0]);
+    e.target.value = '';
+  });
+  // A tap outside any open menu closes it, as a DropdownMenu scrim would.
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('.menu-wrap')) {
+      document.querySelectorAll('.menu').forEach((m) => { m.hidden = true; });
+    }
+  });
   $('btn-add-back').addEventListener('click', () => show('dashboard'));
   $('btn-cancel').addEventListener('click', () => show('dashboard'));
   $('btn-profile-back').addEventListener('click', () => show('dashboard'));
   $('btn-settings-back').addEventListener('click', () => show('dashboard'));
   $('btn-save').addEventListener('click', saveReading);
-  $('btn-scan').addEventListener('click', () => $('scan-file').click());
   $('scan-file').addEventListener('change', (e) => {
     if (e.target.files[0]) scanPhoto(e.target.files[0]);
     e.target.value = '';
@@ -691,8 +939,11 @@ async function boot() {
   await loadLocale();
   applyStatic();
   wire();
+  renderAppbar();
   state.rangeDays = (await db.getKV('rangeDays')) ?? 30;
   state.mode = (await db.getKV('chartMode')) || 'trend';
+  // Defaults on, matching DashboardViewModel's smoothBursts = true.
+  state.smooth = (await db.getKV('smoothBursts')) ?? true;
   await refresh();
   show('dashboard');
   // Probing is deliberately after first paint: a missing or slow server must
