@@ -367,6 +367,12 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   /* What is left of the screen once the keyboard has taken its share. */
   max-height:calc(100vh - var(--kb, 0px) - 12px);overflow:auto}
 .sheet-card h3{margin:0;font-size:1rem;font-weight:600}
+/* The invite code, shown when the link was opened outside the installed app.
+   Selectable, so a failed clipboard write still leaves it usable. */
+.code-out{font:inherit;font-family:ui-monospace,Menlo,monospace;font-size:1.25rem;
+  letter-spacing:.08em;text-align:center;padding:14px 10px;border-radius:12px;
+  background:var(--bg);border:1px solid var(--border);
+  -webkit-user-select:all;user-select:all}
 /* Masked passphrase field with its reveal toggle sitting inside the box. */
 .pass{display:flex;align-items:center;gap:4px;padding:0 4px 0 12px;
   border:1px solid var(--border);border-radius:11px;background:var(--bg)}

@@ -102,6 +102,14 @@ already used". The code goes as a second message, alone, so the recipient can
 long-press and copy it rather than retyping it out of a paragraph. The
 `?code=` link is still there for a desktop that will never install anything.
 
+A `?code=` link is only redeemed when the app is running as an installed PWA.
+Opened in a browser tab it hands the code over instead — shown, copyable, with
+a note to install first, and a way to redeem in the tab anyway if that is
+really what you meant. An installed app keeps its own storage, so redeeming in
+a tab registers the tab and leaves the app unlinked, having spent a single-use
+code. Detected with `display-mode: standalone`, and `navigator.standalone` on
+iOS.
+
 Codes are readable only while an invite can still register something:
 redemption wipes the plaintext from the database, leaving the hash. If you
 lose a code before sending it, revoke it and make another.

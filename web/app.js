@@ -796,6 +796,77 @@ function renderSettings() {
   });
 }
 
+/* An installed PWA has its own storage, separate from the browser that
+   installed it. So redeeming an invite in a tab registers the tab -- and
+   spends the code, which is single-use -- while the app the recipient
+   actually opens stays unlinked. */
+const isInstalled = () =>
+  window.matchMedia('(display-mode: standalone)').matches
+  || window.matchMedia('(display-mode: fullscreen)').matches
+  || navigator.standalone === true;                       // iOS Safari
+
+async function copyText(text) {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch { /* fall through */ }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0';
+  document.body.appendChild(ta);
+  ta.select();
+  ta.setSelectionRange(0, text.length);                   // iOS needs the range
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch { ok = false; }
+  ta.remove();
+  return ok;
+}
+
+async function redeemFromLink(code) {
+  try {
+    await srv.redeem(code);
+    history.replaceState({}, '', '/');
+    toast(t('settings_server_linked'));
+    updateServerUi();
+  } catch (e) {
+    // A spent or expired code is not worth a dialog on launch; the settings
+    // screen says the same thing, in context, whenever the user goes looking.
+    toast(e.message);
+  }
+}
+
+/* Opened in a browser rather than the installed app: hand over the code
+   instead of spending it here. */
+function offerCode(code) {
+  const sheet = $('sheet');
+  const dismiss = () => { sheet.hidden = true; sheet.onclick = null; };
+  const close = () => { closeOverlay(dismiss); dismiss(); };
+  sheet.innerHTML = `<div class="sheet-card">
+      <h3>${esc(t('invite_install_title'))}</h3>
+      <p class="muted" style="margin:0">${esc(t('invite_install_body'))}</p>
+      <div class="code-out">${esc(code)}</div>
+      <button class="btn" id="inv-copy">${esc(t('invite_copy_code'))}</button>
+      <button class="link" id="inv-here">${esc(t('invite_use_here'))}</button>
+    </div>`;
+  sheet.hidden = false;
+  sheet.onclick = (e) => { if (e.target === sheet) close(); };
+  openOverlay(dismiss);
+
+  $('inv-copy').addEventListener('click', async () => {
+    const b = $('inv-copy');
+    const ok = await copyText(code);
+    b.textContent = ok ? t('action_ok') : t('invite_copy_code');
+    // The code stays on screen either way, so a failed copy is not a dead end.
+  });
+  $('inv-here').addEventListener('click', async () => {
+    close();
+    await redeemFromLink(code);
+  });
+}
+
 /* prompt() renders the passphrase in clear text on screen and in the platform
    dialog's own history, which is the wrong place for the one secret the server
    deliberately cannot recover. This is the same bottom sheet the rest of the
@@ -1408,10 +1479,10 @@ async function boot() {
   // Only redeem when not already linked: re-opening the invite link
   // otherwise rotates the device token on every visit for no reason.
   if (code) {
-    srv.ready().then((st) => (st.linked ? null : srv.redeem(code))).then(() => {
-      history.replaceState({}, '', '/');
-      toast(t('settings_server_linked'));
-      updateServerUi();
+    srv.ready().then((st) => {
+      if (st.linked) { history.replaceState({}, '', '/'); return; }
+      if (isInstalled()) return redeemFromLink(code);
+      offerCode(code);
     }).catch(() => {});
   }
   if ('serviceWorker' in navigator) {
