@@ -94,10 +94,16 @@ Serve `admin/` from the public root and it achieves nothing — the endpoints it
 calls are not there. Forget the `-X-Admin` strip and anyone can set the header
 themselves, so both halves matter.
 
-`admin/` also composes the message to send: the invite link and the four steps
-that follow from it, in one message. The link is safe to send because it is
-inert until the code is entered from the installed app — a tap, a chat's link
+`admin/` also composes the message to send: the invite link and the steps that
+follow from it, in one message. The link is safe to send because it is inert
+until it is opened from the installed app — a tap in a browser, a chat's link
 preview, or a dozen retries spend nothing.
+
+Which is what makes the second tap the whole flow. Install, tap the link
+again, and on Android it opens in the app, which is standalone, which redeems
+it — no code changes hands. The manifest asks for that with
+`"handle_links": "preferred"`. iOS never routes links to an installed PWA, so
+the message keeps the copy-the-code path as the fallback it needs to be.
 
 A `?code=` link is only redeemed when the app is running as an installed PWA.
 Opened in a browser tab it hands the code over instead — shown, copyable, with
