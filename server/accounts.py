@@ -209,6 +209,7 @@ def _delete_device_blocking(device_id: int) -> bool:
     """
     with connect() as con:
         con.execute("DELETE FROM push_subs WHERE device_id = ?", (device_id,))
+        con.execute("DELETE FROM ocr_usage WHERE device_id = ?", (device_id,))
         cur = con.execute("DELETE FROM devices WHERE id = ?", (device_id,))
         return cur.rowcount > 0
 
@@ -221,6 +222,10 @@ def _prune_devices_blocking() -> int:
     with connect() as con:
         con.execute(
             "DELETE FROM push_subs WHERE device_id IN "
+            "(SELECT id FROM devices WHERE revoked = 1)"
+        )
+        con.execute(
+            "DELETE FROM ocr_usage WHERE device_id IN "
             "(SELECT id FROM devices WHERE revoked = 1)"
         )
         cur = con.execute("DELETE FROM devices WHERE revoked = 1")

@@ -46,12 +46,30 @@ CREATE TABLE IF NOT EXISTS reminders (
 );
 
 CREATE TABLE IF NOT EXISTS ocr_usage (
-    device_id  INTEGER NOT NULL,
+    device_id  INTEGER NOT NULL REFERENCES devices(id) ON DELETE CASCADE,
     day        TEXT NOT NULL,
     count      INTEGER NOT NULL DEFAULT 0,
     PRIMARY KEY (device_id, day)
 );
 """
+
+
+# Every table that hangs off a device. Swept at startup because a constraint
+# added later does not apply to rows written before it existed -- ocr_usage
+# carried no foreign key at all for its first weeks and orphaned a quota row
+# each time a device was deleted.
+_DEVICE_CHILDREN = ("push_subs", "backups", "reminders", "ocr_usage")
+
+
+def _sweep_orphans(con) -> int:
+    total = 0
+    for table in _DEVICE_CHILDREN:
+        cur = con.execute(
+            f"DELETE FROM {table} "  # noqa: S608 - fixed table names, not input
+            "WHERE device_id NOT IN (SELECT id FROM devices)"
+        )
+        total += cur.rowcount
+    return total
 
 
 def init() -> None:
@@ -60,6 +78,9 @@ def init() -> None:
         con.execute("PRAGMA journal_mode = WAL")
         accounts.init_schema(con)
         con.executescript(SCHEMA)
+        dropped = _sweep_orphans(con)
+        if dropped:
+            log.warning("swept %d orphaned row(s) from device child tables", dropped)
 
 
 def _now() -> str:
