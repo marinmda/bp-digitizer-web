@@ -310,6 +310,27 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .toast-action{font:inherit;font-size:.875rem;font-weight:600;background:none;
   border:0;color:var(--accent-soft);cursor:pointer;padding:2px 4px}
 
+/* --- help screen (HelpScreen.kt) ---------------------------------------- */
+.help-list{display:flex;flex-direction:column;gap:8px}
+.help-card{background:var(--surface-variant);border-radius:16px;overflow:hidden}
+.help-head{display:flex;align-items:center;gap:12px;width:100%;font:inherit;
+  font-size:1rem;font-weight:600;text-align:left;background:none;border:0;
+  color:var(--text);cursor:pointer;padding:16px}
+.help-ico{flex:none;width:24px;height:24px;display:grid;place-items:center;
+  color:var(--accent)}
+.help-title{flex:1;min-width:0}
+.help-chev{flex:none;display:grid;place-items:center;color:var(--on-surface-variant);
+  transition:transform .22s ease}
+.help-card.open .help-chev{transform:rotate(180deg)}
+/* 0fr to 1fr animates a height the content decides, with no measuring. */
+.help-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .22s ease}
+.help-card.open .help-body{grid-template-rows:1fr}
+.help-body>div{overflow:hidden}
+/* 52px = 16 padding + 24 icon + 12 gap, so the body lines up under the title. */
+.help-body p{margin:0;padding:0 16px 16px 52px;font-size:.875rem;line-height:1.5;
+  color:var(--on-surface-variant);white-space:pre-line}
+@media (prefers-reduced-motion:reduce){.help-chev,.help-body{transition:none}}
+
 /* --- modal bottom sheet (tag editing) ----------------------------------- */
 /* --kb is the soft keyboard's height, measured from the visual viewport (see
    the tracker in app.js). The layout viewport does not shrink when a keyboard

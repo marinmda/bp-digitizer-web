@@ -104,7 +104,7 @@ function openTagEditor(id) {
 /* ------------------------------------------------------------- routing -- */
 function show(view) {
   state.view = view;
-  for (const v of ['dashboard', 'add', 'profile', 'settings']) {
+  for (const v of ['dashboard', 'add', 'profile', 'settings', 'help']) {
     $(`view-${v}`).hidden = v !== view;
   }
   document.querySelector('.fabs').hidden = view !== 'dashboard';
@@ -699,14 +699,12 @@ function renderSettings() {
   // copies here meant two file inputs for one job and a button to remember in
   // two places every time the export menu changed.
   $('settings-body').innerHTML = `
-    <p class="muted" id="s-data-note"></p>
-    <h2 style="margin:22px 0 8px">${esc(t('settings_server_title'))}</h2>
+    <h2 style="margin:0 0 8px">${esc(t('settings_server_title'))}</h2>
     <div id="s-server"></div>
     <h2 style="margin:22px 0 8px">${esc(t('settings_danger_zone'))}</h2>
     <button class="link" id="s-wipe" style="color:var(--z-crisis)">${
       esc(t('settings_delete_all'))}</button>`;
 
-  renderDataNote();
   renderServerSection();
   const ver = $('s-version');
   if (ver) {
@@ -787,7 +785,7 @@ function askPassphrase({ title, message, autocomplete }) {
    that lives behind an icon in the app bar, so the note carries the same icon
    as a pointer to where it is. */
 function renderDataNote() {
-  const el = $('s-data-note');
+  const el = $('foot');
   if (!el) return;
   el.innerHTML = srv.state.linked
     ? esc(t('settings_backup_note'))
@@ -1111,23 +1109,42 @@ function renderAppbar() {
   $('ab-settings').addEventListener('click', () => { renderSettings(); show('settings'); });
 }
 
-/* Help is a screen in the Android app; here it is the same content in a sheet,
-   which keeps the back stack shallow on a page that has no system back. */
+/* HELP_SECTIONS from HelpScreen.kt, same order and the same icons, minus the
+   Health Connect entry, which has no counterpart on the web. Sections with no
+   icon keep the space, so every title starts on the same line. */
+const HELP_TOPICS = [
+  ['camera', 'camera'], ['manual', 'edit'], ['trends', null], ['history', null],
+  ['profile', 'person'], ['risk', null], ['hemo', null], ['reminders', 'bell'],
+  ['export', 'share'], ['import', 'download'], ['insights', 'lightbulb'],
+];
+
+/* One card per topic, collapsed until asked for -- eleven topics printed in
+   full is a wall of text nobody reads. */
 function showHelp() {
-  const sheet = $('sheet');
-  const topics = ['camera', 'manual', 'trends', 'history', 'profile', 'risk',
-                  'hemo', 'reminders', 'export', 'import', 'insights']
-    .map((k) => [`help_${k}_title`, `help_${k}_body`]);
-  sheet.innerHTML = `<div class="sheet-card" style="max-height:80vh;overflow:auto">
-      <h2 style="margin:0">${esc(t('help_title'))}</h2>
-      ${topics.filter(([ti]) => t(ti) !== ti).map(([ti, bo]) =>
-        `<h3>${esc(t(ti))}</h3><p style="font-size:.875rem;margin:0;white-space:pre-line">${
-          esc(t(bo))}</p>`).join('')}
-      <button class="btn" id="help-close">${esc(t('action_cancel'))}</button>
-    </div>`;
-  sheet.hidden = false;
-  $('help-close').addEventListener('click', () => { sheet.hidden = true; });
-  sheet.onclick = (e) => { if (e.target === sheet) sheet.hidden = true; };
+  const list = $('help-list');
+  list.innerHTML = HELP_TOPICS
+    .filter(([k]) => t(`help_${k}_title`) !== `help_${k}_title`)
+    .map(([k, ico]) => `
+      <div class="help-card" data-k="${k}">
+        <button class="help-head" type="button" aria-expanded="false"
+                aria-controls="help-b-${k}" id="help-h-${k}">
+          <span class="help-ico">${ico ? icon(ico, 22) : ''}</span>
+          <span class="help-title">${esc(t(`help_${k}_title`))}</span>
+          <span class="help-chev">${icon('chevron', 22)}</span>
+        </button>
+        <div class="help-body" id="help-b-${k}" role="region" aria-labelledby="help-h-${k}">
+          <div><p>${esc(t(`help_${k}_body`))}</p></div>
+        </div>
+      </div>`).join('');
+
+  list.onclick = (e) => {
+    const head = e.target.closest('.help-head');
+    if (!head) return;
+    const card = head.closest('.help-card');
+    const open = card.classList.toggle('open');
+    head.setAttribute('aria-expanded', String(open));
+  };
+  show('help');
 }
 
 function applyStatic() {
@@ -1135,6 +1152,7 @@ function applyStatic() {
   $('add-title').textContent = t('validation_save');
   $('profile-title').textContent = t('profile_title');
   $('settings-title').textContent = t('settings_title');
+  $('help-title').textContent = t('help_title');
   $('lbl-sys').textContent = t('validation_subtitle_sys');
   $('lbl-dia').textContent = t('validation_subtitle_dia');
   $('lbl-pulse').textContent = t('validation_subtitle_pul');
@@ -1142,7 +1160,7 @@ function applyStatic() {
   $('lbl-notes').textContent = t('validation_notes_label');
   $('btn-save').textContent = t('action_save');
   $('btn-cancel').textContent = t('action_cancel');
-  $('foot').textContent = t('settings_local_only_note');
+  renderDataNote();
   document.title = t('app_name');
 }
 
@@ -1208,6 +1226,7 @@ function wire() {
   $('btn-cancel').addEventListener('click', () => show('dashboard'));
   $('btn-profile-back').addEventListener('click', () => show('dashboard'));
   $('btn-settings-back').addEventListener('click', () => show('dashboard'));
+  $('btn-help-back').addEventListener('click', () => show('dashboard'));
   $('btn-save').addEventListener('click', saveReading);
   $('scan-file').addEventListener('change', (e) => {
     if (e.target.files[0]) scanPhoto(e.target.files[0]);
