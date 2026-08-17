@@ -55,10 +55,6 @@ h2{font-size:.74rem;margin:0;text-transform:uppercase;letter-spacing:.08em;
 .risk .det{color:var(--muted);font-size:.84rem;margin-top:2px}
 
 /* --- chart ------------------------------------------------------------- */
-.chips{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:9px}
-.chip{font:inherit;font-size:.8rem;font-weight:600;padding:6px 12px;border-radius:999px;
-  cursor:pointer;background:var(--bg);border:1px solid var(--border);color:var(--muted)}
-.chip.on{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
 .chart-wrap{position:relative}
 #chart{width:100%;display:block;touch-action:pan-y}
 .grid{stroke:var(--border);stroke-width:1}
@@ -151,10 +147,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .appbar-actions .icon-btn:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
 
 /* --- filter chips (RangeChipRow) ---------------------------------------- */
-.chips{display:flex;gap:8px;align-items:center;overflow-x:auto;padding:8px 0;
-  scrollbar-width:none}
+.chips{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;
+  padding:8px 0;scrollbar-width:none}
 .chips::-webkit-scrollbar{display:none}
-.chip{font:inherit;font-size:.875rem;line-height:1;white-space:nowrap;cursor:pointer;
+.chip{font:inherit;font-size:.875rem;font-weight:500;line-height:1;white-space:nowrap;cursor:pointer;
   height:32px;padding:0 16px;border-radius:8px;border:1px solid var(--outline);
   background:transparent;color:var(--text);display:inline-flex;align-items:center;gap:6px}
 .chip[aria-pressed="true"]{background:var(--secondary-container);
