@@ -1,15 +1,26 @@
 /* The printable Blood Pressure Report, ported from ExportPdfUseCase.kt.
 
-   Android draws into a PdfDocument canvas. Here the browser's own print
-   pipeline does the rendering and the user picks "Save as PDF" -- which is
-   what makes the report work in all twelve locales. A bundled PDF writer
-   would have to carry embedded CJK, Devanagari and Arabic fonts (megabytes)
-   and its own bidi/shaping, whereas the browser already has all of that.
+   Android draws into a PdfDocument canvas at a fixed 2x-A4 size. Here the
+   browser's own print pipeline does the rendering and the user picks "Save as
+   PDF" -- which is what makes the report work in all twelve locales. A bundled
+   PDF writer would have to carry embedded CJK, Devanagari and Arabic fonts and
+   its own bidi and shaping, for megabytes, where the browser already has both.
    Nothing leaves the device either way.
 
-   The layout is the same layout, expressed in millimetres rather than the
-   Kotlin's 2x-A4 pixels: charts are SVG at 4 units/mm, everything else is
-   ordinary flow laid out inside fixed-size page boxes. */
+   The catch is that the print dialog, not this code, chooses the paper. Chrome
+   on Android ignores the @page size descriptor entirely and shrinks any
+   oversized page box to fit, so nothing here may assume a page's dimensions:
+
+     - every page box is `height: 100vh`, which in paged media is exactly the
+       printable area, whatever paper and orientation the dialog is set to;
+     - the charts are SVG stretched with preserveAspectRatio="none", so they
+       fill a box of any shape. Strokes carry vector-effect="non-scaling-stroke"
+       so line weights stay put, dots are zero-length round-capped paths so they
+       stay circular, and every label is HTML positioned in per-cent so no text
+       is ever stretched;
+     - the reading table flows across pages under the browser's own pagination
+       with a repeating thead and tfoot, rather than being chopped into a fixed
+       number of rows that only fits one paper size. */
 'use strict';
 
 import { t, locale } from './i18n.js';
@@ -39,10 +50,10 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
 
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const r0 = (n) => Math.round(n);
-const clamp01 = (n) => Math.min(1, Math.max(0, n));
+const pc = (n) => `${(n * 100).toFixed(3)}%`;
 
 function lerpHex(a, b, k) {
-  const f = clamp01(k);
+  const f = Math.min(1, Math.max(0, k));
   const c = a.map((v, i) => r0(v + (b[i] - v) * f));
   return `rgb(${c[0]},${c[1]},${c[2]})`;
 }
@@ -93,37 +104,27 @@ function buildChartRanges(all) {
   return out;
 }
 
-/* ------------------------------------------------------------- SVG bits --- */
+/* ------------------------------------------------------- plot primitives -- */
 
-/* Every SVG in the report is drawn at 4 units per millimetre, so a font-size
-   of 15 units is 3.75 mm on paper whichever chart it appears in. Android's
-   PDF is 2x A4 (5.67 px/mm); its TS_SMALL of 22 px is that same 3.9 mm. */
-const U = 4;
-const SVG_W = 273 * U;             // landscape content width, 273 mm
-const PLOT_L = 36;
-const PLOT_R = 960;                // leaves room for the reference labels
-const BADGE_R = 9;
-
-const line = (x1, y1, x2, y2, cls) =>
-  `<line class="${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${x2.toFixed(1)}" y2="${y2.toFixed(1)}"/>`;
-const text = (x, y, cls, s, extra = '') =>
-  `<text class="${cls}" x="${x.toFixed(1)}" y="${y.toFixed(1)}"${extra}>${esc(s)}</text>`;
-
-/** Yellow pill holding the concatenated tag numbers of one reading. */
-function badge(cx, cy, label) {
-  const halfW = Math.max(BADGE_R, label.length * 4 + 5);
-  return `<rect class="bdg" x="${(cx - halfW).toFixed(1)}" y="${(cy - BADGE_R).toFixed(1)}"
-    width="${(halfW * 2).toFixed(1)}" height="${(BADGE_R * 2).toFixed(1)}"
-    rx="${BADGE_R}" ry="${BADGE_R}"/>`
-    + text(cx, cy + BADGE_R * 0.42, 'bdg-t', label, ' text-anchor="middle"');
-}
+/* Plot geometry is normalised: the SVG's viewBox is a 1000x1000 square that
+   gets stretched to whatever shape the page leaves for it. Only shapes go in
+   the SVG; labels are HTML siblings placed in per-cent, which is what keeps
+   text upright and evenly sized however the box is stretched. */
+const VB = 1000;
+const svgLine = (x1, y1, x2, y2, cls) =>
+  `<line class="${cls}" x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${
+    x2.toFixed(1)}" y2="${y2.toFixed(1)}" vector-effect="non-scaling-stroke"/>`;
+/* A zero-length subpath with a round cap draws a true circle of the stroke's
+   width, so dots stay round in a stretched viewBox where <circle> would not. */
+const svgDot = (x, y, colour, w) =>
+  `<path d="M${x.toFixed(1)},${y.toFixed(1)}L${x.toFixed(1)},${y.toFixed(1)}" stroke="${
+    colour}" stroke-width="${w}" stroke-linecap="round" vector-effect="non-scaling-stroke"/>`;
+const label = (cls, styles, s) =>
+  `<span class="${cls}" style="${styles}">${esc(s)}</span>`;
 
 /* ---------------------------------------------------------- line chart ---- */
 
-function chartSvg(rows, badgeAt, heightMm) {
-  const H = r0(heightMm * U);
-  const top = 10;
-  const bottom = H - 48;                   // room for the rotated X labels
+function chartPlot(rows, badgeAt) {
   const first = rows[0].timestamp;
   const last = rows[rows.length - 1].timestamp;
 
@@ -137,51 +138,51 @@ function chartSvg(rows, badgeAt, heightMm) {
     yMin = Math.floor((lo - 5) / 10) * 10;
     yMax = Math.ceil((hi + 5) / 10) * 10;
   }
-  const Y = (v) => bottom - ((v - yMin) / (yMax - yMin)) * (bottom - top);
-  const X = (ts) => (first === last ? (PLOT_L + PLOT_R) / 2
-                                    : PLOT_L + ((ts - first) / (last - first)) * (PLOT_R - PLOT_L));
+  const ny = (v) => 1 - (v - yMin) / (yMax - yMin);            // 0 at top
+  const nx = (ts) => (first === last ? 0.5 : (ts - first) / (last - first));
+  const Y = (v) => ny(v) * VB;
+  const X = (ts) => nx(ts) * VB;
 
-  let s = '';
+  let svg = '', html = '';
   const step = (yMax - yMin) <= 80 ? 10 : 20;
   for (let v = yMin; v <= yMax; v += step) {
-    const y = Y(v);
-    s += line(PLOT_L, y, PLOT_R, y, 'grid');
-    s += text(PLOT_L - 8, y + 5, 'ax', v, ' text-anchor="end"');
-    s += text(PLOT_R + 8, y + 5, 'ax', v);
+    svg += svgLine(0, Y(v), VB, Y(v), 'grid');
+    html += label('yl', `top:${pc(ny(v))}`, v) + label('yr', `top:${pc(ny(v))}`, v);
   }
-  for (const [v, label] of [[120, t('pdf_ref_sys', 120)], [80, t('pdf_ref_dia', 80)]]) {
+  for (const [v, text] of [[120, t('pdf_ref_sys', 120)], [80, t('pdf_ref_dia', 80)]]) {
     if (v < yMin || v > yMax) continue;
-    const y = Y(v);
-    s += line(PLOT_L, y, PLOT_R, y, 'ref');
-    s += text(PLOT_R + 40, y + 5, 'reft', label);
+    svg += svgLine(0, Y(v), VB, Y(v), 'ref');
+    html += label('rl', `top:${pc(ny(v))}`, text);
   }
 
-  // Up to ten X labels, spaced evenly in real time rather than by index, so
-  // an irregular measuring habit is visible in the chart.
+  // Up to ten X labels, spaced evenly in real time rather than by index, so an
+  // irregular measuring habit shows up in the chart.
   const fmt = xLabelFmt(last - first);
   const count = Math.min(10, rows.length);
   const denom = Math.max(1, count - 1);
   for (let i = 0; i < count; i++) {
     const ts = first + (last - first) * i / denom;
-    s += `<text class="ax" transform="translate(${X(ts).toFixed(1)},${(bottom + 16).toFixed(1)}) rotate(40)">${
-      esc(fmt(ts))}</text>`;
+    html += label('xl', `left:${pc(nx(ts))}`, fmt(ts));
   }
 
-  const path = (key) => rows.map((r, i) =>
-    `${i ? 'L' : 'M'}${X(r.timestamp).toFixed(1)},${Y(r[key]).toFixed(1)}`).join('');
-  s += `<path class="serie" stroke="${DIA_COLOR}" d="${path('diastolic')}"/>`;
-  s += `<path class="serie" stroke="${SYS_COLOR}" d="${path('systolic')}"/>`;
+  const path = (key, colour) => `<path class="serie" stroke="${colour}" vector-effect="non-scaling-stroke" d="${
+    rows.map((r, i) => `${i ? 'L' : 'M'}${X(r.timestamp).toFixed(1)},${Y(r[key]).toFixed(1)}`).join('')}"/>`;
+  svg += path('diastolic', DIA_COLOR) + path('systolic', SYS_COLOR);
 
-  const dotR = rows.length > 100 ? 2 : rows.length > 40 ? 3.5 : 5;
+  const dotW = rows.length > 100 ? 3 : rows.length > 40 ? 5 : 7;
   rows.forEach((r, i) => {
-    const x = X(r.timestamp), sy = Y(r.systolic), dy = Y(r.diastolic);
-    s += `<circle cx="${x.toFixed(1)}" cy="${sy.toFixed(1)}" r="${dotR}" fill="${SYS_COLOR}"/>`;
-    s += `<circle cx="${x.toFixed(1)}" cy="${dy.toFixed(1)}" r="${dotR}" fill="${DIA_COLOR}"/>`;
-    if (badgeAt[i]) s += badge(x, Math.min(sy, dy) - dotR - BADGE_R - 2, badgeAt[i]);
+    svg += svgDot(X(r.timestamp), Y(r.systolic), SYS_COLOR, dotW);
+    svg += svgDot(X(r.timestamp), Y(r.diastolic), DIA_COLOR, dotW);
+    if (badgeAt[i]) {
+      const top = Math.min(ny(r.systolic), ny(r.diastolic));
+      html += `<span class="cal" style="left:${pc(nx(r.timestamp))};top:${pc(top)}">${
+        esc(badgeAt[i])}</span>`;
+    }
   });
 
-  s += line(PLOT_L, top, PLOT_L, bottom, 'axis') + line(PLOT_L, bottom, PLOT_R, bottom, 'axis');
-  return `<svg class="chart" viewBox="0 0 ${SVG_W} ${H}" style="height:${heightMm}mm">${s}</svg>`;
+  svg += svgLine(0, 0, 0, VB, 'axis') + svgLine(0, VB, VB, VB, 'axis');
+  return `<div class="plot"><div class="pa"><svg viewBox="0 0 ${VB} ${VB}"
+    preserveAspectRatio="none">${svg}</svg>${html}</div></div>`;
 }
 
 /* ---------------------------------------------------------- stats bar ----- */
@@ -191,7 +192,7 @@ function statsBar(rows) {
   const dia = rows.map((r) => r.diastolic);
   const mapAvg = r0(avg(rows.map((r) => meanArterialPressure(r.systolic, r.diastolic))));
   const ppAvg = r0(avg(rows.map((r) => pulsePressure(r.systolic, r.diastolic))));
-  const val = (label, v) => `<span class="sv"><b>${esc(label)}</b> ${esc(v)}</span>`;
+  const val = (k, v) => `<span class="sv"><b>${esc(k)}</b> ${esc(v)}</span>`;
   return `<div class="stats">
     <i style="background:${SYS_COLOR}"></i><span>${esc(t('pdf_stat_systolic'))}</span>
     <i style="background:${DIA_COLOR}"></i><span>${esc(t('pdf_stat_diastolic'))}</span>
@@ -207,26 +208,21 @@ function statsBar(rows) {
 
 /* ---------------------------------------------------------- tag legend ---- */
 
-const NOTE_COLS = 3;
-const legendRows = (n) => Math.ceil(n / NOTE_COLS);
-/* 6 mm a row, plus the rule and its padding. Kept in step with .legend in CSS
-   so the page's fixed heights still add up to exactly the content box. */
-const legendHeightMm = (n) => (n ? legendRows(n) * 6 + 3 : 0);
-
-function tagLegend(tags) {
-  if (!tags.length) return '';
-  return `<div class="legend" style="height:${legendHeightMm(tags.length)}mm">${tags.map((k, i) =>
-    `<span class="lg"><b>${i + 1}</b>${esc(`${i + 1} = ${t(k)}`)}</span>`).join('')}</div>`;
-}
+const tagLegend = (tags) => (tags.length
+  ? `<div class="legend">${tags.map((k, i) =>
+      `<span class="lg"><b>${i + 1}</b>${esc(`${i + 1} = ${t(k)}`)}</span>`).join('')}</div>`
+  : '');
 
 /* ------------------------------------------------------------- overview --- */
 
-function donutSvg(rows) {
+/* The donut is intrinsically square, so this one keeps a uniform aspect ratio
+   and sits in a square box; its legend is HTML beside it. */
+function donut(rows) {
   const total = rows.length;
   const present = CATEGORIES.map((c) => [c, rows.filter((r) => r.category === c).length])
     .filter(([, n]) => n > 0);
 
-  const cx = 110, cy = 140, r = 92, thickness = 34;
+  const cx = 150, cy = 150, r = 116, thickness = 44;
   const circ = 2 * Math.PI * r;
   let offset = 0, arcs = '';
   for (const [cat, n] of present) {
@@ -236,65 +232,60 @@ function donutSvg(rows) {
       stroke-dashoffset="${(-offset).toFixed(2)}" transform="rotate(-90 ${cx} ${cy})"/>`;
     offset += len;
   }
-  arcs += text(cx, cy + 12, 'donut-n', total, ' text-anchor="middle"');
-  arcs += text(cx, cy + r + thickness / 2 + 28, 'donut-c', t('pdf_readings_count', total),
-    ' text-anchor="middle"');
+  arcs += `<text x="${cx}" y="${cy + 16}" text-anchor="middle" class="dn">${total}</text>`;
 
-  let ly = 42;
-  for (const [cat, n] of present) {
-    const pct = Math.round(100 * n / total);
-    arcs += `<rect x="245" y="${ly - 12}" width="16" height="16" fill="${ZONE_HEX[cat]}"/>`;
-    arcs += text(272, ly + 1, 'lgd', `${t(ZONE_KEY[cat])}    ${n}  (${pct}%)`);
-    ly += 44;
-  }
-  return `<svg viewBox="0 0 530 300">${arcs}</svg>`;
+  const rowsHtml = present.map(([cat, n]) =>
+    `<span class="zl"><i style="background:${ZONE_HEX[cat]}"></i>${
+      esc(`${t(ZONE_KEY[cat])}    ${n}  (${Math.round(100 * n / total)}%)`)}</span>`).join('');
+
+  return `<div class="zone">
+    <div class="dbox"><svg viewBox="0 0 300 300">${arcs}</svg>
+      <span class="dcap">${esc(t('pdf_readings_count', total))}</span></div>
+    <div class="zleg">${rowsHtml}</div>
+  </div>`;
 }
 
-function scatterSvg(rows) {
-  const W = 530, H = 380, left = 60, right = W - 12, top = 20, bottom = H - 64;
+function scatterPlot(rows) {
   const snapLo = (v) => Math.floor((v - 5) / 10) * 10;
   const snapHi = (v) => Math.ceil((v + 5) / 10) * 10;
   const sysMin = snapLo(Math.min(...rows.map((r) => r.systolic)));
   const sysMax = snapHi(Math.max(...rows.map((r) => r.systolic)));
   const diaMin = snapLo(Math.min(...rows.map((r) => r.diastolic)));
   const diaMax = snapHi(Math.max(...rows.map((r) => r.diastolic)));
-  const X = (d) => left + ((d - diaMin) / (diaMax - diaMin || 1)) * (right - left);
-  const Y = (s) => bottom - ((s - sysMin) / (sysMax - sysMin || 1)) * (bottom - top);
+  const nx = (d) => (d - diaMin) / (diaMax - diaMin || 1);
+  const ny = (s) => 1 - (s - sysMin) / (sysMax - sysMin || 1);
 
-  let s = '';
+  let svg = '', html = '';
   const yStep = (sysMax - sysMin) <= 80 ? 10 : 20;
   for (let v = sysMin; v <= sysMax; v += yStep) {
-    s += line(left, Y(v), right, Y(v), 'grid') + text(left - 8, Y(v) + 5, 'ax', v, ' text-anchor="end"');
+    svg += svgLine(0, ny(v) * VB, VB, ny(v) * VB, 'grid');
+    html += label('yl', `top:${pc(ny(v))}`, v);
   }
   const xStep = (diaMax - diaMin) <= 80 ? 10 : 20;
   for (let v = diaMin; v <= diaMax; v += xStep) {
-    s += line(X(v), top, X(v), bottom, 'grid')
-       + text(X(v), bottom + 22, 'ax', v, ' text-anchor="middle"');
+    svg += svgLine(nx(v) * VB, 0, nx(v) * VB, VB, 'grid');
+    html += label('xc', `left:${pc(nx(v))}`, v);
   }
-  if (sysMin <= 120 && 120 <= sysMax) s += line(left, Y(120), right, Y(120), 'ref');
-  if (diaMin <= 80 && 80 <= diaMax) s += line(X(80), top, X(80), bottom, 'ref');
+  if (sysMin <= 120 && 120 <= sysMax) svg += svgLine(0, ny(120) * VB, VB, ny(120) * VB, 'ref');
+  if (diaMin <= 80 && 80 <= diaMax) svg += svgLine(nx(80) * VB, 0, nx(80) * VB, VB, 'ref');
 
   const tMin = Math.min(...rows.map((r) => r.timestamp));
   const tMax = Math.max(...rows.map((r) => r.timestamp));
   for (const r of rows) {
     const k = tMax > tMin ? (r.timestamp - tMin) / (tMax - tMin) : 1;
-    s += `<circle cx="${X(r.diastolic).toFixed(1)}" cy="${Y(r.systolic).toFixed(1)}" r="4.5"
-      fill="${lerpHex(RECENCY_OLD, RECENCY_NEW, k)}"/>`;
+    svg += svgDot(nx(r.diastolic) * VB, ny(r.systolic) * VB,
+                  lerpHex(RECENCY_OLD, RECENCY_NEW, k), 6);
   }
-  s += line(left, top, left, bottom, 'axis') + line(left, bottom, right, bottom, 'axis');
-  s += text((left + right) / 2, bottom + 50, 'axt', t('pdf_stat_diastolic'), ' text-anchor="middle"');
-  s += `<text class="axt" text-anchor="middle" transform="translate(${left - 44},${
-    (top + bottom) / 2}) rotate(-90)">${esc(t('pdf_stat_systolic'))}</text>`;
-  return `<svg viewBox="0 0 ${W} ${H}">${s}</svg>`;
+  svg += svgLine(0, 0, 0, VB, 'axis') + svgLine(0, VB, VB, VB, 'axis');
+
+  return `<div class="plot scat">
+    <span class="axt xt">${esc(t('pdf_stat_diastolic'))}</span>
+    <span class="axt yt">${esc(t('pdf_stat_systolic'))}</span>
+    <div class="pa"><svg viewBox="0 0 ${VB} ${VB}" preserveAspectRatio="none">${svg}</svg>${html}</div>
+  </div>`;
 }
 
-function recencyKey() {
-  return `<svg class="reckey" viewBox="0 0 530 20">
-    <defs><linearGradient id="rk"><stop offset="0" stop-color="rgb(${RECENCY_OLD})"/>
-      <stop offset="1" stop-color="rgb(${RECENCY_NEW})"/></linearGradient></defs>
-    <rect x="0" y="3" width="60" height="14" fill="url(#rk)"/>
-    ${text(70, 15, 'lgd', t('scatter_colour_time'))}</svg>`;
-}
+const recencyKey = () => `<div class="reckey"><i></i>${esc(t('scatter_colour_time'))}</div>`;
 
 /* ------------------------------------------------------------- assembly --- */
 
@@ -305,19 +296,18 @@ const header = (subtitle, right) => `<div class="hd">
 
 const footer = () => `<div class="ft">
     <span class="url">${esc(SITE_URL)}</span>
-    <span class="disc">${esc(t('pdf_disclaimer'))}</span>
+    <span>${esc(t('pdf_disclaimer'))}</span>
   </div>`;
 
-function overviewPage(rows) {
-  return `<section class="page land">
+const overviewPage = (rows) => `<section class="page">
     ${header(`${t('pdf_overview_subtitle')}  ·  ${dateSpan(rows)}`, t('pdf_exported', dfDate(Date.now())))}
-    <div class="ov">
-      <div><h2>${esc(t('pdf_zone_distribution'))}</h2>${donutSvg(rows)}</div>
-      <div><h2>${esc(t('pdf_sys_vs_dia'))}</h2>${recencyKey()}${scatterSvg(rows)}</div>
-    </div>
+    <h2>${esc(t('pdf_zone_distribution'))}</h2>
+    ${donut(rows)}
+    <h2>${esc(t('pdf_sys_vs_dia'))}</h2>
+    ${recencyKey()}
+    ${scatterPlot(rows)}
     ${footer()}
   </section>`;
-}
 
 function chartPage(range) {
   const rows = range.rows;
@@ -331,11 +321,9 @@ function chartPage(range) {
     if (ns.length) badgeAt[i] = ns.join('');
   });
 
-  // 186 mm of content: header 18, stats 9, footer 12, legend as needed.
-  const chartMm = 186 - 18 - 9 - 12 - legendHeightMm(present.length);
-  return `<section class="page land">
+  return `<section class="page">
     ${header(range.heading, t('pdf_exported', dfDate(Date.now())))}
-    ${chartSvg(rows, badgeAt, chartMm)}
+    ${chartPlot(rows, badgeAt)}
     ${statsBar(rows)}
     ${tagLegend(present)}
     ${footer()}
@@ -350,143 +338,164 @@ function notesCell(r) {
   return full.length > 52 ? `${full.slice(0, 49)}…` : full;
 }
 
-/* 273 mm of content, less the 18 mm header, 8 mm column row and 12 mm footer,
-   at 7 mm a row. Rows never wrap (fixed layout + ellipsis), so this is exact. */
-const ROWS_PER_PAGE = 33;
-
-function tablePages(rows) {
-  const chunks = [];
-  for (let i = 0; i < rows.length; i += ROWS_PER_PAGE) chunks.push(rows.slice(i, i + ROWS_PER_PAGE));
-  const total = chunks.length;
-  return chunks.map((batch, ci) => `<section class="page port">
-    <div class="hd">
-      <h1>${esc(ci === 0 ? t('pdf_table_title') : t('pdf_table_title_cont'))}</h1>
-      <span>${esc(ci === 0
-        ? `${t('pdf_exported', dfDate(Date.now()))}  ·  ${t('pdf_readings_count', rows.length)}`
-        : t('pdf_page_x_of_y', ci + 1, total))}</span>
-    </div>
-    <table>
-      <thead><tr>
+/* One flowing table rather than fixed-size chunks: the browser decides where
+   the page breaks fall, so the rows fit whatever paper is loaded. thead and
+   tfoot repeat on every page, which is how the title and the disclaimer stay
+   on each one without knowing how many pages there will be. */
+const tableSection = (rows) => `<table>
+    <thead>
+      <tr class="tt"><th colspan="6"><div>
+        <span>${esc(t('pdf_table_title'))}</span>
+        <span class="tr">${esc(`${t('pdf_exported', dfDate(Date.now()))}  ·  ${
+          t('pdf_readings_count', rows.length)}`)}</span>
+      </div></th></tr>
+      <tr>
         <th>${esc(t('pdf_col_datetime'))}</th><th>${esc(t('pdf_col_sys'))}</th>
         <th>${esc(t('pdf_col_dia'))}</th><th>${esc(t('pdf_col_pulse'))}</th>
         <th>${esc(t('pdf_col_category'))}</th><th>${esc(t('pdf_col_notes'))}</th>
-      </tr></thead>
-      <tbody>${batch.map((r, i) => `<tr${i % 2 === 0 ? ' class="alt"' : ''}>
-        <td>${esc(dfDateTime(r.timestamp))}</td><td>${r.systolic}</td><td>${r.diastolic}</td>
-        <td>${r.pulse == null ? '—' : r.pulse}</td>
-        <td style="color:${ZONE_HEX[r.category] || '#323232'}">${esc(t(ZONE_KEY[r.category] || ''))}</td>
-        <td>${esc(notesCell(r))}</td></tr>`).join('')}</tbody>
-    </table>
-    ${footer()}
-  </section>`).join('');
-}
+      </tr>
+    </thead>
+    <tfoot><tr><td colspan="6"><div class="ft">
+      <span class="url">${esc(SITE_URL)}</span>
+      <span>${esc(t('pdf_disclaimer'))}</span>
+    </div></td></tr></tfoot>
+    <tbody>${rows.map((r, i) => `<tr${i % 2 === 0 ? ' class="alt"' : ''}>
+      <td>${esc(dfDateTime(r.timestamp))}</td><td>${r.systolic}</td><td>${r.diastolic}</td>
+      <td>${r.pulse == null ? '—' : r.pulse}</td>
+      <td style="color:${ZONE_HEX[r.category] || '#323232'}">${esc(t(ZONE_KEY[r.category] || ''))}</td>
+      <td>${esc(notesCell(r))}</td></tr>`).join('')}</tbody>
+  </table>`;
 
 /* ------------------------------------------------------------ print CSS --- */
 
 const CSS = `
-@page land { size: A4 landscape; margin: 0 }
-@page port { size: A4 portrait;  margin: 0 }
+@page { margin: 12mm }
 #bp-report { display: none }
 @media print {
   html.bp-printing, html.bp-printing body { background: #fff !important; margin: 0; padding: 0 }
   html.bp-printing body > *:not(#bp-report) { display: none !important }
   html.bp-printing #bp-report { display: block }
 }
+/* Reset, not inherit: the app's own h1/h2/p rules would otherwise reach in
+   (its h2 is uppercase small-caps, which is wrong for a section heading here). */
+#bp-report, #bp-report * { box-sizing: border-box }
+#bp-report h1, #bp-report h2, #bp-report p, #bp-report table, #bp-report span {
+  margin: 0; padding: 0; font-weight: 400; text-transform: none; letter-spacing: 0;
+  color: inherit; font-size: inherit; line-height: inherit }
 #bp-report {
   color: #141414; background: #fff;
-  font: 11pt/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font: 9pt/1.35 ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
-/* Every band below has a fixed height and the chart is sized to the remainder,
-   so a page's parts add up to its content box exactly rather than nearly. */
-#bp-report .page {
-  box-sizing: border-box; padding: 12mm; background: #fff;
-  display: flex; flex-direction: column; break-after: page; break-inside: avoid;
-  overflow: hidden;
-}
+
+/* 100vh is the printable area of whatever paper the dialog is set to, so a
+   page box fills it exactly without this code knowing the paper size. */
+#bp-report .page { height: 100vh; display: flex; flex-direction: column;
+  break-after: page; overflow: hidden }
 #bp-report .page:last-child { break-after: auto }
-#bp-report .land { page: land; width: 297mm; height: 210mm }
-#bp-report .port { page: port; width: 210mm; height: 297mm }
 
-#bp-report .hd { box-sizing: border-box; height: 18mm; flex: none; overflow: hidden;
-  display: flex; align-items: flex-start; justify-content: space-between; gap: 8mm;
-  border-bottom: .5mm solid #c8c8c8 }
-#bp-report .hd h1 { font-size: 16pt; margin: 0; font-weight: 700; line-height: 1.25 }
-#bp-report .hd p  { font-size: 11pt; margin: 1mm 0 0; color: #3c3c3c; line-height: 1.25 }
-#bp-report .hd span { font-size: 9pt; color: #646464; white-space: nowrap; padding-top: 1mm }
+#bp-report .hd { flex: none; display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 8mm;
+  border-bottom: .5mm solid #c8c8c8; padding-bottom: 2mm; margin-bottom: 3mm }
+#bp-report .hd h1 { font-size: 15pt; font-weight: 700; line-height: 1.2 }
+#bp-report .hd p  { font-size: 10pt; color: #3c3c3c; padding-top: 1mm }
+#bp-report .hd > span { font-size: 8pt; color: #646464; white-space: nowrap; padding-top: 1mm }
+#bp-report h2 { flex: none; font-size: 11pt; font-weight: 700; padding: 2mm 0 1.5mm }
 
-#bp-report .ft { box-sizing: border-box; height: 12mm; flex: none; margin-top: auto;
-  border-top: .5mm solid #c8c8c8; padding-top: 1.5mm;
-  display: flex; flex-direction: column; align-items: flex-start;
-  font-size: 7.5pt; line-height: 1.3; color: #969696 }
-#bp-report .ft .url { align-self: flex-end }
+#bp-report .ft { flex: none; margin-top: auto; border-top: .5mm solid #c8c8c8;
+  padding-top: 1.5mm; display: flex; flex-direction: column; align-items: flex-start;
+  font-size: 7pt; line-height: 1.3; color: #969696 }
+#bp-report .ft .url, #bp-report tfoot .url { align-self: flex-end }
 
-#bp-report .chart { display: block; width: 100%; flex: none }
-#bp-report svg { overflow: hidden }
-#bp-report svg text { font-family: inherit }
+/* --- plots: a stretched square viewBox plus HTML labels around it --- */
+#bp-report .plot { flex: 1; min-height: 0; position: relative }
+#bp-report .pa { position: absolute; top: 4mm; right: 22mm; bottom: 11mm; left: 9mm }
+#bp-report .pa > svg { position: absolute; inset: 0; width: 100%; height: 100%;
+  overflow: visible }
+#bp-report .pa span { position: absolute; white-space: nowrap;
+  font-size: 7.5pt; color: #646464 }
 #bp-report .grid  { stroke: #e8e8e8; stroke-width: 1 }
-#bp-report .axis  { stroke: #969696; stroke-width: 2 }
-#bp-report .ref   { stroke: #a0a0a0; stroke-width: 1.5; stroke-dasharray: 9 5 }
-#bp-report .serie { fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round }
-#bp-report .ax    { font-size: 15px; fill: #646464 }
-#bp-report .reft  { font-size: 13px; fill: #8c8c8c }
-#bp-report .axt   { font-size: 15px; fill: #505050 }
-#bp-report .lgd   { font-size: 13px; fill: #282828 }
-#bp-report .bdg   { fill: #ffe632; stroke: #a07800; stroke-width: 1.5 }
-#bp-report .bdg-t { font-size: 12px; font-weight: 700; fill: #3c2800 }
-#bp-report .donut-n { font-size: 34px; font-weight: 700; fill: #141414 }
-#bp-report .donut-c { font-size: 14px; fill: #787878 }
+#bp-report .axis  { stroke: #969696; stroke-width: 1.5 }
+#bp-report .ref   { stroke: #a0a0a0; stroke-width: 1.2; stroke-dasharray: 5 3 }
+#bp-report .serie { fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round }
+#bp-report .yl { left: 0; margin-left: -2mm; transform: translate(-100%, -50%) }
+#bp-report .yr { left: 100%; margin-left: 2mm; transform: translateY(-50%) }
+#bp-report .rl { left: 100%; margin-left: 10mm; transform: translateY(-50%);
+  font-size: 6.5pt; color: #8c8c8c }
+#bp-report .xl { top: 100%; margin-top: 1.5mm; transform-origin: left top; transform: rotate(40deg) }
+#bp-report .xc { top: 100%; margin-top: 1.5mm; transform: translateX(-50%) }
+#bp-report .cal { transform: translate(-50%, -140%); background: #ffe632;
+  border: .25mm solid #a07800; color: #3c2800; border-radius: 2mm;
+  padding: .2mm 1mm; font-size: 6pt; font-weight: 700; line-height: 1.5 }
+#bp-report .scat .pa { right: 4mm; left: 16mm; bottom: 13mm; top: 2mm }
+#bp-report .axt { position: absolute; font-size: 7.5pt; color: #505050 }
+#bp-report .xt { bottom: 0; left: 50%; transform: translateX(-50%) }
+#bp-report .yt { left: 3mm; top: 50%; transform: translate(-50%, -50%) rotate(-90deg) }
 
-#bp-report .stats { box-sizing: border-box; height: 9mm; flex: none;
-  display: flex; align-items: center; gap: 2mm;
-  font-size: 9pt; color: #3c3c3c; flex-wrap: nowrap; overflow: hidden }
-#bp-report .stats i { width: 3mm; height: 3mm; flex: none }
-#bp-report .stats em { width: .4mm; height: 5mm; background: #c8c8c8; margin: 0 2mm; flex: none }
+/* --- overview --- */
+#bp-report .zone { flex: none; height: 46mm; display: flex; gap: 8mm; align-items: center }
+#bp-report .dbox { height: 100%; aspect-ratio: 1; position: relative;
+  display: flex; flex-direction: column; align-items: center; justify-content: center }
+#bp-report .dbox svg { width: 100%; height: 100%; min-height: 0 }
+#bp-report .dcap { font-size: 7pt; color: #787878; padding-top: 1mm }
+#bp-report .dn { font-size: 34px; font-weight: 700; fill: #141414 }
+#bp-report .zleg { display: flex; flex-direction: column; gap: 2mm; font-size: 8.5pt }
+#bp-report .zl { display: flex; align-items: center; gap: 2mm; white-space: nowrap }
+#bp-report .zl i, #bp-report .stats i { width: 3mm; height: 3mm; flex: none }
+#bp-report .reckey { flex: none; display: flex; align-items: center; gap: 2mm;
+  font-size: 7.5pt; color: #282828; padding-bottom: 1mm }
+#bp-report .reckey i { width: 16mm; height: 3mm; flex: none;
+  background: linear-gradient(to right, rgb(${RECENCY_OLD}), rgb(${RECENCY_NEW})) }
+
+/* --- stats bar and tag legend --- */
+#bp-report .stats { flex: none; display: flex; align-items: center; gap: 2mm;
+  padding-top: 2mm; font-size: 8pt; color: #3c3c3c; flex-wrap: wrap }
+#bp-report .stats em { width: .4mm; height: 4mm; background: #c8c8c8; margin: 0 1mm; flex: none }
 #bp-report .stats .sv { font-variant-numeric: tabular-nums; white-space: nowrap; margin-right: 2mm }
-#bp-report .stats .sv b { font-weight: 400; color: #3c3c3c }
-
-#bp-report .legend { box-sizing: border-box; flex: none; overflow: hidden;
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 4mm;
-  border-top: .3mm solid #e8e8e8; padding-top: 1.5mm }
-#bp-report .lg { display: flex; align-items: center; gap: 2mm; height: 6mm;
-  font-size: 8.5pt; color: #323232; overflow: hidden; white-space: nowrap }
+#bp-report .legend { flex: none; display: grid; grid-template-columns: repeat(3, 1fr);
+  gap: 0 4mm; border-top: .3mm solid #e8e8e8; margin-top: 1.5mm; padding-top: 1.5mm }
+#bp-report .lg { display: flex; align-items: center; gap: 1.5mm; height: 5mm;
+  font-size: 7.5pt; color: #323232; overflow: hidden; white-space: nowrap }
 #bp-report .lg b { display: inline-flex; align-items: center; justify-content: center;
-  min-width: 5mm; height: 4mm; padding: 0 1mm; border-radius: 2mm; font-size: 7pt;
-  background: #ffe632; border: .3mm solid #a07800; color: #3c2800; flex: none }
+  min-width: 4mm; height: 3.4mm; padding: 0 .8mm; border-radius: 1.7mm; font-size: 6pt;
+  background: #ffe632; border: .25mm solid #a07800; color: #3c2800; flex: none }
 
-#bp-report .ov { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 8mm;
-  align-items: start; min-height: 0 }
-#bp-report .ov h2 { font-size: 12pt; margin: 0 0 3mm; font-weight: 700 }
-#bp-report .ov svg { width: 100%; display: block }
-#bp-report .reckey { margin-bottom: 2mm }
-
-#bp-report table { width: 100%; border-collapse: collapse; font-size: 9pt; table-layout: fixed }
+/* --- reading table --- */
+#bp-report table { width: 100%; border-collapse: collapse; font-size: 8.5pt; table-layout: fixed }
+#bp-report thead { display: table-header-group }
+#bp-report tfoot { display: table-footer-group }
+#bp-report .tt th { border-bottom: .5mm solid #c8c8c8; padding-bottom: 2mm }
+#bp-report .tt th div { display: flex; align-items: baseline;
+  justify-content: space-between; gap: 8mm; font-size: 15pt; font-weight: 700 }
+#bp-report .tt .tr { font-size: 8pt; font-weight: 400; color: #646464; white-space: nowrap }
 #bp-report th { text-align: left; font-weight: 700; color: #141414; height: 8mm;
-  border-bottom: .5mm solid #c8c8c8 }
+  vertical-align: bottom }
 #bp-report td { height: 7mm; color: #323232;
   overflow: hidden; white-space: nowrap; text-overflow: ellipsis }
 #bp-report tr.alt td { background: #f8f9fa }
-#bp-report th:nth-child(1), #bp-report td:nth-child(1) { width: 42mm }
+#bp-report tfoot td { height: 12mm; vertical-align: bottom; padding-top: 1.5mm }
+#bp-report th:nth-child(1), #bp-report td:nth-child(1) { width: 38mm }
 #bp-report th:nth-child(2), #bp-report td:nth-child(2),
 #bp-report th:nth-child(3), #bp-report td:nth-child(3),
-#bp-report th:nth-child(4), #bp-report td:nth-child(4) { width: 13mm }
-#bp-report th:nth-child(5), #bp-report td:nth-child(5) { width: 24mm }
+#bp-report th:nth-child(4), #bp-report td:nth-child(4) { width: 12mm }
+#bp-report th:nth-child(5), #bp-report td:nth-child(5) { width: 22mm }
 `;
 
 /* --------------------------------------------------------------- entry ---- */
 
 /**
- * Builds the report and hands it to the browser's print dialog, where the user
- * chooses "Save as PDF". Resolves once printing has been dismissed.
+ * The report's markup. Exported separately from exportPdf so it can be rendered
+ * and checked outside a browser -- the layout depends on print-time page
+ * metrics, which is exactly the part worth testing.
  *
- * @param {Array}  all     every reading, any order
- * @param {object} opts    { smooth } -- average back-to-back sittings on the
- *                         chart pages, matching the dashboard's own toggle.
- *                         The table pages always show the raw readings.
+ * @param {Array}  all   every reading, any order
+ * @param {object} opts  { smooth } -- average back-to-back sittings on the chart
+ *                       pages, matching the dashboard's own toggle. The table
+ *                       always shows the raw readings, as in the Android app.
  */
-export async function exportPdf(all, opts = {}) {
+export function reportHtml(all, opts = {}) {
   const rows = [...all].sort((a, b) => a.timestamp - b.timestamp);
-  if (!rows.length) return false;
+  if (!rows.length) return '';
   const now = Date.now();
 
   let html = '';
@@ -498,8 +507,14 @@ export async function exportPdf(all, opts = {}) {
   }
 
   const table = rows.filter((r) => r.timestamp >= now - 30 * MS_DAY);
-  if (table.length) html += tablePages(table.reverse());
+  if (table.length) html += tableSection(table.reverse());
+  return html;
+}
 
+export const reportCss = () => CSS;
+
+export async function exportPdf(all, opts = {}) {
+  const html = reportHtml(all, opts);
   if (!html) return false;
 
   if (!document.getElementById('bp-report-css')) {
@@ -516,11 +531,11 @@ export async function exportPdf(all, opts = {}) {
   }
   host.innerHTML = html;
   // Direction is inherited from <html>, so the Arabic report reads right-to-left
-  // including its table columns. The charts are SVG with explicit coordinates,
-  // so they are unaffected either way.
+  // including its table columns. The plots are positioned geometrically and are
+  // unaffected either way.
 
-  // Registered before print() because some browsers fire afterprint from
-  // inside the blocking call, which a listener added afterwards would miss.
+  // Registered before print() because some browsers fire afterprint from inside
+  // the blocking call, which a listener added afterwards would miss.
   let done = false;
   const clean = () => {
     if (done) return;
