@@ -50,6 +50,54 @@ forwarded link is not a week-long open door. Redemption is the one endpoint
 that must answer before it knows who is asking, so it is rate limited per
 address, with a global ceiling behind it.
 
+## Managing invites and devices
+
+Two interfaces over the same endpoints — `./admin.sh` for a terminal, and
+`admin/` for a page that makes codes copyable, which is the part a terminal
+does badly.
+
+```bash
+./admin.sh invite "Ana"     # create one; prints the code and a link
+./admin.sh invites          # list, with codes for the ones still usable
+./admin.sh devices          # list, with last-seen and whether push is set up
+./admin.sh revoke 3         # lock a device out; unrevoke puts it back
+./admin.sh forget 3         # delete it, and its backup and reminders with it
+```
+
+**Neither carries a credential.** There is no admin password: being able to
+reach the listener is the authorisation. Put the admin API — and the page —
+on a private surface only, and inject the header there:
+
+```caddyfile
+# private surface: tailnet, VPN, LAN, whatever only you can reach
+handle /bp/api/* {
+    uri strip_prefix /bp
+    reverse_proxy 127.0.0.1:8094 {
+        header_up X-Admin 1        # this is what authorises admin
+    }
+}
+handle_path /bp-admin/* {
+    root * /path/to/admin
+    file_server
+}
+
+# public surface
+handle /api/admin/* { respond 404 }
+handle /api/* {
+    reverse_proxy 127.0.0.1:8094 {
+        header_up -X-Admin         # strip whatever a client sends
+    }
+}
+```
+
+Serve `admin/` from the public root and it achieves nothing — the endpoints it
+calls are not there. Forget the `-X-Admin` strip and anyone can set the header
+themselves, so both halves matter.
+
+Codes are readable only while an invite can still register something:
+redemption wipes the plaintext from the database, leaving the hash. If you
+lose a code before sending it, revoke it and make another.
+
 The server never sees a reading in the clear. Backups are encrypted in the
 browser with AES-GCM under a key derived from your passphrase by PBKDF2
 (310,000 iterations); the server stores ciphertext, a salt and an IV, and
