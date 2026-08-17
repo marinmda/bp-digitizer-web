@@ -73,27 +73,36 @@ const until = (iso) => {
   return `în ${Math.round(hours / 24)} zile`;
 };
 
-/* The whole message to send, not just the code. Opening the link redeems the
-   code in whatever browser opens it -- which, from a chat, is the chat's own
-   browser, not the installed app. So the instructions put installing first and
-   entering the code second; getting that order wrong is what burns an invite
-   and produces "it says already used". */
+/* The instructions, deliberately without the code in them.
+   
+   Two reasons. Opening the link redeems the code in whatever browser opens it
+   -- from a chat, the chat's own browser rather than the installed app -- so
+   the steps put installing first and entering the code second; the other order
+   is what burns an invite and produces "it says already used". And a chat app
+   copies a whole message at once, so a code buried in this one would have to
+   be retyped by hand. It goes in a message of its own, which can be
+   long-pressed and copied as it stands. */
 function inviteMessage(inv) {
+  // The bare site, not the ?code= link: that link redeems on open, so putting
+  // it in a chat hands the invite to the chat's browser the moment anyone taps
+  // it -- including a link preview fetched by someone else entirely. It also
+  // puts the code back in this message, which is what sending it separately
+  // was for. The ?code= link stays available above, for a desktop that is
+  // never going to install anything.
+  const site = String(inv.url).split('?')[0];
   return [
     'Salut! Îți trimit acces la wBP Digitizer — o aplicație pentru urmărirea',
     'tensiunii arteriale. Măsurătorile rămân pe telefonul tău, nu se trimit nicăieri.',
     '',
     '1) Deschide linkul:',
-    inv.url,
+    site,
     '',
     '2) Adaugă-l pe ecranul principal:',
     '• Android (Chrome): meniul ⋮ → „Adaugă la ecranul principal”',
     '• iPhone (Safari): butonul de partajare → „Add to Home Screen”',
     '',
     '3) Deschide aplicația de pe ecranul principal (nu din browser) și apasă',
-    'butonul camerei, cel cu lacăt. Acolo introdu codul:',
-    '',
-    inv.code,
+    'butonul camerei, cel cu lacăt. Acolo lipești codul din mesajul următor.',
     '',
     `Codul e valabil ${inv.expires_in_days ?? 7} zile și înregistrează un singur telefon.`,
   ].join('\n');
@@ -137,12 +146,16 @@ function showInvite(inv) {
     </div>
     ${inv.url ? `<div class="field">
       <label for="v-msg">Mesaj</label>
-      <div class="val" id="v-msg">Instrucțiuni complete, gata de trimis</div>
+      <div class="val" id="v-msg">Instrucțiuni, fără cod</div>
       <button class="btn small" data-copy-msg="1">Copiază mesajul</button>
       <a class="btn small ghost" target="_blank" rel="noopener"
          href="https://wa.me/?text=${encodeURIComponent(inviteMessage(inv))}">WhatsApp</a>
     </div>` : ''}
     <p class="note">
+      <strong>Trimite două mesaje:</strong> întâi instrucțiunile, apoi codul
+      singur. Un chat copiază mesajul întreg, deci un cod pus între
+      instrucțiuni ar trebui rescris de mână — singur, poate fi ținut apăsat și
+      copiat ca atare.<br>
       Un singur dispozitiv, expiră în ${esc(inv.expires_in_days)} zile.
       În prima oră de la folosire codul re-leagă <em>același</em> dispozitiv,
       nu înregistrează altul — deci poate fi introdus întâi în browserul din

@@ -94,11 +94,13 @@ Serve `admin/` from the public root and it achieves nothing — the endpoints it
 calls are not there. Forget the `-X-Admin` strip and anyone can set the header
 themselves, so both halves matter.
 
-`admin/` also composes the whole message to send — link, how to install, and
-the code, in that order — because opening the link redeems it in whatever
-browser opens it, and from a chat that is the chat's own browser rather than
-the installed app. Sending just the link is what produces "it says already
-used". Copy it, or hand it straight to WhatsApp.
+`admin/` also composes the message to send. It carries the bare site address
+and how to install, and **not** the code: the `?code=` link redeems on open, so
+in a chat it hands the invite to the chat's own browser the moment anyone taps
+it — whose storage the installed app cannot see. That is what produces "it says
+already used". The code goes as a second message, alone, so the recipient can
+long-press and copy it rather than retyping it out of a paragraph. The
+`?code=` link is still there for a desktop that will never install anything.
 
 Codes are readable only while an invite can still register something:
 redemption wipes the plaintext from the database, leaving the hash. If you
