@@ -26,6 +26,7 @@
 import { t, locale } from './i18n.js';
 import { TAGS, CATEGORIES, ZONE_KEY, meanArterialPressure, pulsePressure } from './bp.js';
 import { collapseBursts } from './aggregate.js';
+import { recencyColor, recencyGradient, recencyAt } from './palette.js';
 
 const MS_DAY = 86400000;
 /** Minimum readings in the last 90 days before the overview page is worth it. */
@@ -40,23 +41,12 @@ const ZONE_HEX = {
   NORMAL: '#2e7d32', ELEVATED: '#f9a825', STAGE_1: '#ef6c00',
   STAGE_2: '#d32f2f', HYPERTENSIVE_CRISIS: '#b71c1c',
 };
-/* Recency ramp for the scatter: oldest light, newest deep. It encodes time,
-   not severity -- the dot's position already shows severity. */
-const RECENCY_OLD = [0x90, 0xca, 0xf9];
-const RECENCY_NEW = [0x0d, 0x47, 0xa1];
-
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g,
   (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
 const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
 const r0 = (n) => Math.round(n);
 const pc = (n) => `${(n * 100).toFixed(3)}%`;
-
-function lerpHex(a, b, k) {
-  const f = Math.min(1, Math.max(0, k));
-  const c = a.map((v, i) => r0(v + (b[i] - v) * f));
-  return `rgb(${c[0]},${c[1]},${c[2]})`;
-}
 
 const tagsOf = (r) => String(r.tags || '').split(',').filter(Boolean);
 
@@ -272,9 +262,8 @@ function scatterPlot(rows) {
   const tMin = Math.min(...rows.map((r) => r.timestamp));
   const tMax = Math.max(...rows.map((r) => r.timestamp));
   for (const r of rows) {
-    const k = tMax > tMin ? (r.timestamp - tMin) / (tMax - tMin) : 1;
     svg += svgDot(nx(r.diastolic) * VB, ny(r.systolic) * VB,
-                  lerpHex(RECENCY_OLD, RECENCY_NEW, k), 6);
+                  recencyColor(recencyAt(r.timestamp, tMin, tMax)), 6);
   }
   svg += svgLine(0, 0, 0, VB, 'axis') + svgLine(0, VB, VB, VB, 'axis');
 
@@ -445,7 +434,7 @@ const CSS = `
 #bp-report .reckey { flex: none; display: flex; align-items: center; gap: 2mm;
   font-size: 7.5pt; color: #282828; padding-bottom: 1mm }
 #bp-report .reckey i { width: 16mm; height: 3mm; flex: none;
-  background: linear-gradient(to right, rgb(${RECENCY_OLD}), rgb(${RECENCY_NEW})) }
+  background: ${recencyGradient()} }
 
 /* --- stats bar and tag legend --- */
 #bp-report .stats { flex: none; display: flex; align-items: center; gap: 2mm;

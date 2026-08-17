@@ -10,6 +10,7 @@ import * as db from './db.js';
 import * as bp from './bp.js';
 import { TAGS, ZONE_KEY } from './bp.js';
 import { exportPdf } from './pdf.js';
+import { recencyColor, recencyGradient, recencyAt } from './palette.js';
 import { t, plural, load as loadLocale, setLocale, locale, LOCALES, fmtDate } from './i18n.js';
 import * as srv from './server.js';
 import { icon } from './icons.js';
@@ -410,14 +411,19 @@ function drawScatter(svg, rows, W, H, PAD) {
   if (80 >= xMin && 80 <= xMax) {
     grid += `<line class="refline" x1="${X(80).toFixed(1)}" y1="${PAD.t}" x2="${X(80).toFixed(1)}" y2="${H - PAD.b}"/>`;
   }
+  // Colour carries time here, not severity: where a dot sits relative to the
+  // 120/80 guides already says how high it is, so spending colour on severity
+  // too would say the same thing twice and waste the only free channel left.
+  const tMin = Math.min(...rows.map((r) => r.timestamp));
+  const tMax = Math.max(...rows.map((r) => r.timestamp));
   const dots = rows.map((r) =>
     `<circle cx="${X(r.diastolic).toFixed(1)}" cy="${Y(r.systolic).toFixed(1)}" r="4.5"
-       fill="${ZONE_COLOR[r.category]}" opacity=".8" data-id="${r.id}"><title>${
+       fill="${recencyColor(recencyAt(r.timestamp, tMin, tMax))}" opacity=".8" data-id="${r.id}"><title>${
        r.systolic}/${r.diastolic} — ${esc(fmtDate(r.timestamp))}</title></circle>`).join('');
   svg.innerHTML = grid + dots + labels;
-  $('legend').innerHTML = Object.keys(ZONE_COLOR).map((z) =>
-    `<span><i style="background:${ZONE_COLOR[z]};height:8px;width:8px;border-radius:50%"></i>${
-      esc(t(ZONE_KEY[z]))}</span>`).join('');
+  $('legend').innerHTML =
+    `<span><i style="background:${recencyGradient()};width:34px;height:8px;border-radius:2px"></i>${
+      esc(t('scatter_colour_time'))}</span>`;
 }
 
 function attachCursor(svg, rows, X) {
