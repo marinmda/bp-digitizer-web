@@ -224,7 +224,11 @@ function renderHistory() {
   $('history').innerHTML = rows.map((r) => {
     const pulse = r.pulse ? t('dashboard_reading_pulse_format', r.pulse) : '';
     const tags = db.normalizeTags(r.tags).split(',').filter(Boolean).map((x) => t(x)).join(' · ');
-    return `<div class="row" data-id="${r.id}">
+    // The row slides over this layer, uncovering whichever trash icon is on
+    // the side it came from -- SwipeToDismissBox's backgroundContent.
+    return `<div class="swipe">
+        <div class="swipe-bg" aria-hidden="true">${icon('delete', 22)}${icon('delete', 22)}</div>
+        <div class="row" data-id="${r.id}">
         <div class="row-main">
           <div class="row-time">${esc(fmtDate(r.timestamp))}</div>
           <div class="row-bp">${r.systolic}/${r.diastolic}${esc(pulse)}</div>
@@ -236,6 +240,7 @@ function renderHistory() {
         </div>
         <span class="badge" style="background:${ZONE_COLOR[r.category]}">${
           esc(t(ZONE_KEY[r.category]))}</span>
+        </div>
       </div>`;
   }).join('');
 
@@ -244,11 +249,19 @@ function renderHistory() {
 
 /* Swipe a row aside to delete, hold it to edit its tags -- the two gestures
    SwipeToDismissBox and detectTapGestures give the Android list. */
+/* 56px is the positionalThreshold the Android SwipeToDismissBox uses. */
+const SWIPE_THRESHOLD = 56;
+
 function attachRowGestures(el) {
   const id = Number(el.dataset.id);
+  const wrap = el.parentElement;
   let startX = 0, dx = 0, dragging = false, held = false, timer = null, pointer = null;
 
-  const reset = () => { el.style.transition = 'transform .18s'; el.style.transform = ''; };
+  const reset = () => {
+    el.style.transition = 'transform .18s';
+    el.style.transform = '';
+    wrap.classList.remove('armed');
+  };
 
   el.addEventListener('pointerdown', (e) => {
     if (e.button) return;
@@ -265,6 +278,9 @@ function attachRowGestures(el) {
     dx = e.clientX - startX;
     if (Math.abs(dx) > 8) clearTimeout(timer);
     el.style.transform = `translateX(${dx}px)`;
+    // Past the threshold the icon goes full strength, so releasing is a
+    // decision rather than a surprise.
+    wrap.classList.toggle('armed', Math.abs(dx) >= SWIPE_THRESHOLD);
   });
   const release = () => {
     if (pointer != null && el.hasPointerCapture?.(pointer)) el.releasePointerCapture(pointer);
@@ -273,8 +289,7 @@ function attachRowGestures(el) {
   const end = async () => {
     if (!dragging) return;
     dragging = false; clearTimeout(timer); release();
-    // 56px is the positionalThreshold the Android SwipeToDismissBox uses.
-    if (Math.abs(dx) >= 56) {
+    if (Math.abs(dx) >= SWIPE_THRESHOLD) {
       el.style.transition = 'transform .18s, opacity .18s';
       el.style.transform = `translateX(${dx > 0 ? '100%' : '-100%'})`;
       el.style.opacity = '0';
