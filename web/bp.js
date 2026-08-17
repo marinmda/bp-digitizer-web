@@ -22,6 +22,22 @@ export function categorize(systolic, diastolic) {
   return CATEGORY.NORMAL;
 }
 
+/* BpTag enum order. The PDF's numbered callouts derive their numbers from
+   this order, so it has to be the one list both screens and the report use. */
+export const TAGS = ['tag_on_waking', 'tag_after_medication', 'tag_before_medication',
+                     'tag_exercise', 'tag_stress', 'tag_resting', 'tag_alcohol',
+                     'tag_caffeine', 'tag_salty_meal', 'tag_poor_sleep'];
+
+/* BPCategory declaration order -- severity ascending, as the donut expects. */
+export const CATEGORIES = [CATEGORY.NORMAL, CATEGORY.ELEVATED, CATEGORY.STAGE_1,
+                           CATEGORY.STAGE_2, CATEGORY.HYPERTENSIVE_CRISIS];
+
+export const ZONE_KEY = {
+  NORMAL: 'bp_category_normal', ELEVATED: 'bp_category_elevated',
+  STAGE_1: 'bp_category_stage1', STAGE_2: 'bp_category_stage2',
+  HYPERTENSIVE_CRISIS: 'bp_category_crisis',
+};
+
 export const pulsePressure = (s, d) => s - d;
 export const meanArterialPressure = (s, d) => Math.round((s + 2 * d) / 3);
 

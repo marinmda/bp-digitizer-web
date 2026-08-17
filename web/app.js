@@ -8,6 +8,8 @@ const BUILD = '__BUILD_VERSION__';
 
 import * as db from './db.js';
 import * as bp from './bp.js';
+import { TAGS, ZONE_KEY } from './bp.js';
+import { exportPdf } from './pdf.js';
 import { t, plural, load as loadLocale, setLocale, locale, LOCALES, fmtDate } from './i18n.js';
 import * as srv from './server.js';
 import { icon } from './icons.js';
@@ -22,11 +24,6 @@ const ZONE_COLOR = {
   NORMAL: 'var(--z-normal)', ELEVATED: 'var(--z-elevated)',
   STAGE_1: 'var(--z-s1)', STAGE_2: 'var(--z-s2)', HYPERTENSIVE_CRISIS: 'var(--z-crisis)',
 };
-const ZONE_KEY = {
-  NORMAL: 'bp_category_normal', ELEVATED: 'bp_category_elevated',
-  STAGE_1: 'bp_category_stage1', STAGE_2: 'bp_category_stage2',
-  HYPERTENSIVE_CRISIS: 'bp_category_crisis',
-};
 const RISK_KEY = {
   LOW: 'cv_risk_low', MODERATE: 'cv_risk_moderate',
   HIGH: 'cv_risk_high', VERY_HIGH: 'cv_risk_very_high',
@@ -39,9 +36,6 @@ const RANGES = [
   { d: 7, key: 'chart_range_7d' }, { d: 30, key: 'chart_range_30d' },
   { d: 90, key: 'chart_range_90d' }, { d: 0, key: 'chart_range_all' },
 ];
-const TAGS = ['tag_on_waking', 'tag_after_medication', 'tag_before_medication',
-              'tag_exercise', 'tag_stress', 'tag_resting', 'tag_alcohol',
-              'tag_caffeine', 'tag_salty_meal', 'tag_poor_sleep'];
 
 const state = {
   view: 'dashboard', readings: [], profile: {}, rangeDays: 30,
@@ -570,6 +564,14 @@ async function exportCsv() {
   download(`bp-${stamp()}.csv`, [head.join(','), ...body].join('\n'), 'text/csv');
 }
 
+/* The report is rendered by the browser's print pipeline rather than written
+   as PDF bytes here -- see pdf.js for why. */
+async function exportPdfReport() {
+  const rows = await db.allReadings();
+  if (!rows.length) { toast(t('dashboard_snack_import_none')); return; }
+  await exportPdf(rows, { smooth: !!state.smooth });
+}
+
 async function importFile(file) {
   try {
     const text = await file.text();
@@ -619,6 +621,7 @@ function renderSettings() {
     <div class="actions" style="margin-top:0;flex-wrap:wrap">
       <button class="btn" id="s-json">${esc(t('dashboard_export_json'))}</button>
       <button class="btn" id="s-csv">${esc(t('dashboard_export_csv'))}</button>
+      <button class="btn" id="s-pdf">${esc(t('dashboard_export_pdf'))}</button>
       <button class="link" id="s-import">${esc(t('dashboard_cd_import'))}</button>
       <input type="file" id="s-file" accept=".json,.csv" hidden>
     </div>
@@ -636,6 +639,7 @@ function renderSettings() {
   });
   $('s-json').addEventListener('click', exportJson);
   $('s-csv').addEventListener('click', exportCsv);
+  $('s-pdf').addEventListener('click', exportPdfReport);
   $('s-import').addEventListener('click', () => $('s-file').click());
   $('s-file').addEventListener('change', (e) => {
     if (e.target.files[0]) importFile(e.target.files[0]);
@@ -854,6 +858,7 @@ function renderAppbar() {
       <div class="menu" id="menu-export" hidden>
         <button id="mx-json">${icon('download', 20)}${esc(t('dashboard_export_json'))}</button>
         <button id="mx-csv">${icon('download', 20)}${esc(t('dashboard_export_csv'))}</button>
+        <button id="mx-pdf">${icon('share', 20)}${esc(t('dashboard_export_pdf'))}</button>
       </div>
     </span>
     ${btn('ab-help', 'help', 'dashboard_cd_help')}
@@ -877,6 +882,7 @@ function renderAppbar() {
   $('ab-export').addEventListener('click', () => toggle('menu-export'));
   $('mx-json').addEventListener('click', () => { $('menu-export').hidden = true; exportJson(); });
   $('mx-csv').addEventListener('click', () => { $('menu-export').hidden = true; exportCsv(); });
+  $('mx-pdf').addEventListener('click', () => { $('menu-export').hidden = true; exportPdfReport(); });
   $('ab-help').addEventListener('click', showHelp);
   $('ab-lang').addEventListener('click', () => toggle('menu-lang'));
   $('menu-lang').querySelectorAll('[data-loc]').forEach((b) =>
