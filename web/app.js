@@ -9,7 +9,7 @@ const BUILD = '__BUILD_VERSION__';
 import * as db from './db.js';
 import * as bp from './bp.js';
 import { TAGS, ZONE_KEY } from './bp.js';
-import { exportPdf } from './pdf.js';
+import { exportPdf, exportPdfFile } from './pdf.js';
 import { recencyColor, recencyGradient, recencyAt } from './palette.js';
 import { t, plural, load as loadLocale, setLocale, locale, LOCALES, fmtDate } from './i18n.js';
 import * as srv from './server.js';
@@ -711,6 +711,20 @@ async function exportPdfReport() {
   await exportPdf(rows, { smooth: !!state.smooth });
 }
 
+/* The same report as a file, for when the print dialog is the friction. Costs
+   selectable text and a few megabytes -- see pdf.js for why that trade exists
+   rather than a bundled font. */
+async function exportPdfDownload() {
+  const rows = await db.allReadings();
+  if (!rows.length) { toast(t('dashboard_snack_import_none')); return; }
+  toast(t('dashboard_export_pdf_building'));
+  try {
+    await exportPdfFile(rows, { smooth: !!state.smooth });
+  } catch (e) {
+    toast(e.message);
+  }
+}
+
 async function importFile(file) {
   try {
     const text = await file.text();
@@ -1170,6 +1184,7 @@ function renderAppbar() {
         <button id="mx-json">${icon('download', 20)}${esc(t('dashboard_export_json'))}</button>
         <button id="mx-csv">${icon('download', 20)}${esc(t('dashboard_export_csv'))}</button>
         <button id="mx-pdf">${icon('share', 20)}${esc(t('dashboard_export_pdf'))}</button>
+        <button id="mx-pdf-file">${icon('download', 20)}${esc(t('dashboard_export_pdf_file'))}</button>
       </div>
     </span>
     ${btn('ab-help', 'help', 'dashboard_cd_help')}
@@ -1194,6 +1209,7 @@ function renderAppbar() {
   $('mx-json').addEventListener('click', () => { $('menu-export').hidden = true; exportJson(); });
   $('mx-csv').addEventListener('click', () => { $('menu-export').hidden = true; exportCsv(); });
   $('mx-pdf').addEventListener('click', () => { $('menu-export').hidden = true; exportPdfReport(); });
+  $('mx-pdf-file').addEventListener('click', () => { $('menu-export').hidden = true; exportPdfDownload(); });
   $('ab-help').addEventListener('click', showHelp);
   $('ab-lang').addEventListener('click', () => toggle('menu-lang'));
   $('menu-lang').querySelectorAll('[data-loc]').forEach((b) =>

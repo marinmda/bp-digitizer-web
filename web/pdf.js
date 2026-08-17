@@ -327,11 +327,7 @@ function notesCell(r) {
   return full.length > 52 ? `${full.slice(0, 49)}…` : full;
 }
 
-/* One flowing table rather than fixed-size chunks: the browser decides where
-   the page breaks fall, so the rows fit whatever paper is loaded. thead and
-   tfoot repeat on every page, which is how the title and the disclaimer stay
-   on each one without knowing how many pages there will be. */
-const tableSection = (rows) => `<table>
+const tableHead = (rows) => `
     <thead>
       <tr class="tt"><th colspan="6"><div>
         <span>${esc(t('pdf_table_title'))}</span>
@@ -343,16 +339,41 @@ const tableSection = (rows) => `<table>
         <th>${esc(t('pdf_col_dia'))}</th><th>${esc(t('pdf_col_pulse'))}</th>
         <th>${esc(t('pdf_col_category'))}</th><th>${esc(t('pdf_col_notes'))}</th>
       </tr>
-    </thead>
+    </thead>`;
+
+const tableRows = (rows) => rows.map((r, i) => `<tr${i % 2 === 0 ? ' class="alt"' : ''}>
+      <td>${esc(dfDateTime(r.timestamp))}</td><td>${r.systolic}</td><td>${r.diastolic}</td>
+      <td>${r.pulse == null ? '—' : r.pulse}</td>
+      <td style="color:${ZONE_HEX[r.category] || '#323232'}">${esc(t(ZONE_KEY[r.category] || ''))}</td>
+      <td>${esc(notesCell(r))}</td></tr>`).join('');
+
+/* 273 mm of content, less the 18 mm header, 8 mm column row and 12 mm footer,
+   at 7 mm a row. Only the rasterised export needs this: there the page box is
+   a known size and nothing paginates it for us. */
+const ROWS_PER_PAGE = 33;
+
+const tablePages = (rows) => {
+  const out = [];
+  for (let i = 0; i < rows.length; i += ROWS_PER_PAGE) {
+    out.push(`<section class="page">
+      <table>${tableHead(rows)}<tbody>${tableRows(rows.slice(i, i + ROWS_PER_PAGE))}</tbody></table>
+      ${footer()}
+    </section>`);
+  }
+  return out.join('');
+};
+
+/* One flowing table rather than fixed-size chunks: the browser decides where
+   the page breaks fall, so the rows fit whatever paper is loaded. thead and
+   tfoot repeat on every page, which is how the title and the disclaimer stay
+   on each one without knowing how many pages there will be. */
+const tableSection = (rows) => `<table>
+    ${tableHead(rows)}
     <tfoot><tr><td colspan="6"><div class="ft">
       <span class="url">${esc(SITE_URL)}</span>
       <span>${esc(t('pdf_disclaimer'))}</span>
     </div></td></tr></tfoot>
-    <tbody>${rows.map((r, i) => `<tr${i % 2 === 0 ? ' class="alt"' : ''}>
-      <td>${esc(dfDateTime(r.timestamp))}</td><td>${r.systolic}</td><td>${r.diastolic}</td>
-      <td>${r.pulse == null ? '—' : r.pulse}</td>
-      <td style="color:${ZONE_HEX[r.category] || '#323232'}">${esc(t(ZONE_KEY[r.category] || ''))}</td>
-      <td>${esc(notesCell(r))}</td></tr>`).join('')}</tbody>
+    <tbody>${tableRows(rows)}</tbody>
   </table>`;
 
 /* ------------------------------------------------------------ print CSS --- */
@@ -470,6 +491,142 @@ const CSS = `
 #bp-report th:nth-child(5), #bp-report td:nth-child(5) { width: 22mm }
 `;
 
+/* A4 at 96 dpi, which is what one CSS pixel means, and the same in points.
+   Rendered at 2x for ~192 dpi, which keeps the chart's hairlines readable
+   without the file becoming absurd. */
+const A4_PX = { w: 794, h: 1123 };
+const A4_PT = { w: 595.28, h: 841.89 };
+const RASTER_SCALE = 2;
+const JPEG_QUALITY = 0.86;
+
+/* Overrides for the copy that goes inside the SVG. Two things differ from
+   print: the report is display:none until the print stylesheet reveals it, and
+   there is no @page to supply a margin or size the box. Both are stated here
+   outright -- 45px being 12mm at 96 dpi, the margin print gets from @page. */
+const RASTER_CSS = `
+#bp-report{display:block;background:#fff}
+#bp-report .page{width:${A4_PX.w}px;height:${A4_PX.h}px;padding:45px;overflow:hidden}
+`;
+
+/* ------------------------------------------------- rasterised download ---- */
+
+/* Draws one page box into a JPEG by way of an SVG foreignObject -- the browser
+   renders the same DOM it would print, so every script comes out right without
+   this code knowing anything about fonts. */
+async function rasterisePage(el, css) {
+  const html = new XMLSerializer().serializeToString(el);
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${A4_PX.w}" height="${A4_PX.h}">
+      <foreignObject width="100%" height="100%">
+        <div xmlns="http://www.w3.org/1999/xhtml" id="bp-report">
+          <style>${css}</style>${html}
+        </div>
+      </foreignObject>
+    </svg>`;
+  const img = new Image();
+  img.src = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+  await img.decode();
+
+  const canvas = document.createElement('canvas');
+  canvas.width = A4_PX.w * RASTER_SCALE;
+  canvas.height = A4_PX.h * RASTER_SCALE;
+  const ctx = canvas.getContext('2d');
+  // JPEG has no transparency; without this the page comes out black.
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+
+  const blob = await new Promise((r) => canvas.toBlob(r, 'image/jpeg', JPEG_QUALITY));
+  return new Uint8Array(await blob.arrayBuffer());
+}
+
+/* A minimal PDF: one page per image, each drawn to fill the media box. There
+   are no font objects at all, which is the whole point -- the glyphs are
+   already pixels, so Arabic, Devanagari and CJK need nothing embedded. */
+function buildPdf(images, px) {
+  const enc = new TextEncoder();
+  const parts = [];
+  let len = 0;
+  const put = (d) => {
+    const b = typeof d === 'string' ? enc.encode(d) : d;
+    parts.push(b);
+    len += b.length;
+  };
+  const offsets = [];
+  const obj = (id, dict, stream) => {
+    offsets[id] = len;
+    put(`${id} 0 obj\n${dict}\n`);
+    if (stream !== undefined) {
+      put('stream\n');
+      put(stream);
+      put('\nendstream\n');
+    }
+    put('endobj\n');
+  };
+
+  put('%PDF-1.4\n');
+  put(new Uint8Array([0x25, 0xe2, 0xe3, 0xcf, 0xd3, 0x0a]));  // "this file is binary"
+
+  const pageId = (k) => 3 + k * 3;
+  const kids = images.map((_, k) => `${pageId(k)} 0 R`).join(' ');
+  obj(1, '<</Type/Catalog/Pages 2 0 R>>');
+  obj(2, `<</Type/Pages/Kids[${kids}]/Count ${images.length}>>`);
+
+  const w = A4_PT.w.toFixed(2), h = A4_PT.h.toFixed(2);
+  images.forEach((jpeg, k) => {
+    const id = pageId(k), content = id + 1, image = id + 2;
+    obj(id, `<</Type/Page/Parent 2 0 R/MediaBox[0 0 ${w} ${h}]`
+          + `/Resources<</XObject<</Im0 ${image} 0 R>>>>/Contents ${content} 0 R>>`);
+    const draw = `q\n${w} 0 0 ${h} 0 0 cm\n/Im0 Do\nQ`;
+    obj(content, `<</Length ${draw.length}>>`, draw);
+    obj(image, '<</Type/XObject/Subtype/Image'
+             + `/Width ${px.w}/Height ${px.h}/ColorSpace/DeviceRGB`
+             + `/BitsPerComponent 8/Filter/DCTDecode/Length ${jpeg.length}>>`, jpeg);
+  });
+
+  const count = 3 + images.length * 3;
+  const xref = len;
+  let table = `xref\n0 ${count}\n0000000000 65535 f \n`;
+  for (let i = 1; i < count; i++) {
+    table += `${String(offsets[i]).padStart(10, '0')} 00000 n \n`;
+  }
+  put(table);
+  put(`trailer\n<</Size ${count}/Root 1 0 R>>\nstartxref\n${xref}\n%%EOF\n`);
+
+  return new Blob(parts, { type: 'application/pdf' });
+}
+
+/**
+ * Builds the report and downloads it as a PDF file, with no print dialog.
+ * The pages are pictures rather than text -- not selectable, and a good deal
+ * larger -- which is the price of not shipping a font for every script the app
+ * speaks. exportPdf is still the one to use for a searchable document.
+ */
+export async function exportPdfFile(all, opts = {}) {
+  const html = reportHtml(all, { ...opts, paged: true });
+  if (!html) return false;
+
+  // Never inserted: the SVG lays the markup out for itself, so the live
+  // document is neither measured nor disturbed.
+  const host = document.createElement('div');
+  host.innerHTML = html;
+  {
+    const pages = [...host.querySelectorAll('.page')];
+    const images = [];
+    for (const page of pages) images.push(await rasterisePage(page, CSS + RASTER_CSS));
+    const blob = buildPdf(images, { w: A4_PX.w * RASTER_SCALE, h: A4_PX.h * RASTER_SCALE });
+
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `bp-report-${new Date().toISOString().slice(0, 10)}.pdf`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 10000);
+    return true;
+  }
+}
+
 /* --------------------------------------------------------------- entry ---- */
 
 /**
@@ -496,7 +653,10 @@ export function reportHtml(all, opts = {}) {
   }
 
   const table = rows.filter((r) => r.timestamp >= now - 30 * MS_DAY);
-  if (table.length) html += tableSection(table.reverse());
+  if (table.length) {
+    table.reverse();
+    html += opts.paged ? tablePages(table) : tableSection(table);
+  }
   return html;
 }
 
