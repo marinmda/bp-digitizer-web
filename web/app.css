@@ -2,11 +2,15 @@
   --bg:#faf8f8; --surface:#fff; --border:#e6e0e0; --text:#1c1b1b; --muted:#5f5a5a;
   --accent:#b3261e; --accent-soft:#fdeceb;
   --z-normal:#2e7d32; --z-elevated:#f9a825; --z-s1:#ef6c00; --z-s2:#d32f2f; --z-crisis:#b71c1c;
-  /* Material 3 tonal roles, matching lightColorScheme() in Theme.kt */
-  --surface-variant:#e7e0ec; --on-surface-variant:#49454f;
-  --secondary-container:#e8def8; --on-secondary-container:#1d192b;
+  /* Tonal roles, matching lightColorScheme() in Theme.kt. Warm neutrals, not
+     Material's baseline purple: red, blue, green, amber and orange all carry
+     meaning in this app -- systolic, diastolic, and the five zones -- so the
+     chrome stays out of the way and leaves colour to the data. The FAB pair
+     keeps the primary container, being the one thing meant to stand out. */
+  --surface-variant:#f1efec; --on-surface-variant:#4a4644;
+  --secondary-container:#ddd8d3; --on-secondary-container:#1c1b1a;
   --primary-container:#f9dedc; --on-primary-container:#410e0b;
-  --outline:#79747e;
+  --outline:#7d7975;
   --dia:#1565c0;
   --shadow:0 1px 2px rgba(28,27,27,.06), 0 8px 24px rgba(28,27,27,.07);
   --tab-h:0px;
@@ -17,6 +21,12 @@
     --accent:#f2b8b5; --accent-soft:#3b1a18;
     --z-normal:#81c784; --z-elevated:#ffd54f; --z-s1:#ffb74d; --z-s2:#ff8a65; --z-crisis:#ef9a9a;
     --dia:#90caf9;
+    /* These were missing, so chips, tonal cards and the FABs kept their light
+       fills -- near-black text on pale lavender over a black page. */
+    --surface-variant:#262322; --on-surface-variant:#cdc7c3;
+    --secondary-container:#37332f; --on-secondary-container:#efe9e4;
+    --primary-container:#5c1d1a; --on-primary-container:#ffdad6;
+    --outline:#948d88;
     --shadow:0 1px 2px rgba(0,0,0,.5), 0 8px 24px rgba(0,0,0,.45);
   }
 }
