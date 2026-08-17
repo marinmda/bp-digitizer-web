@@ -208,15 +208,19 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .empty{text-align:center;color:var(--muted);font-size:.875rem;padding:32px}
 
 /* --- floating action buttons -------------------------------------------- */
+/* The FAB column floats over the dashboard, so the dashboard needs room to
+   scroll its last row clear of it -- 84px of button plus its 16px offset. */
+#view-dashboard{padding-bottom:88px}
 .fabs[hidden]{display:none}
 .fabs{position:fixed;right:16px;display:flex;align-items:center;gap:12px;
   bottom:calc(16px + env(safe-area-inset-bottom));z-index:20}
 .fab{border:0;cursor:pointer;display:grid;place-items:center;
   background:var(--primary-container);color:var(--on-primary-container);
-  width:56px;height:56px;border-radius:16px;
+  width:84px;height:84px;border-radius:24px;
   box-shadow:0 3px 5px rgba(0,0,0,.16),0 1px 18px rgba(0,0,0,.12)}
-.fab.small{width:40px;height:40px;border-radius:12px}
-.fab.small svg{width:20px;height:20px}
+.fab svg{width:36px;height:36px}
+.fab.small{width:60px;height:60px;border-radius:18px}
+.fab.small svg{width:30px;height:30px}
 .fab:hover{filter:brightness(1.04)}
 
 /* --- dropdown menus (export, language) ---------------------------------- */
