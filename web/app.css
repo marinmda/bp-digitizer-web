@@ -204,9 +204,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 
 /* --- reading rows: full-bleed, divided, like the LazyColumn ------------- */
 .list{margin:0 -16px}
+/* pan-y hands the browser vertical scrolling and leaves horizontal movement to
+   the swipe-to-delete handler. Without it touch-action is auto, the browser
+   claims the gesture as a possible pan or pinch, and cancels the pointer as
+   soon as its slop is exceeded -- so the swipe can never reach its threshold.
+   Selection off for the same reason: the long-press opens the tag editor, and
+   a native text selection would fight it. */
 .row{display:flex;align-items:center;gap:12px;padding:12px 16px;
   border-bottom:1px solid color-mix(in srgb,var(--text) 12%,transparent);
-  background:var(--surface);position:relative;cursor:pointer}
+  background:var(--surface);position:relative;cursor:pointer;
+  touch-action:pan-y;-webkit-user-select:none;user-select:none;
+  -webkit-touch-callout:none}
 .row-main{flex:1;min-width:0}
 .row-time{font-size:.75rem;color:var(--muted)}
 .row-bp{font-size:1rem;font-weight:600;margin:1px 0}

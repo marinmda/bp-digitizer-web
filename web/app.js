@@ -246,13 +246,17 @@ function renderHistory() {
    SwipeToDismissBox and detectTapGestures give the Android list. */
 function attachRowGestures(el) {
   const id = Number(el.dataset.id);
-  let startX = 0, dx = 0, dragging = false, held = false, timer = null;
+  let startX = 0, dx = 0, dragging = false, held = false, timer = null, pointer = null;
 
   const reset = () => { el.style.transition = 'transform .18s'; el.style.transform = ''; };
 
   el.addEventListener('pointerdown', (e) => {
     if (e.button) return;
     startX = e.clientX; dx = 0; dragging = true; held = false;
+    pointer = e.pointerId;
+    // Rows are short, so a swipe leaves one vertically almost immediately.
+    // Capturing keeps the move and up events coming here until it ends.
+    try { el.setPointerCapture(pointer); } catch { /* mouse on an old engine */ }
     el.style.transition = '';
     timer = setTimeout(() => { held = true; openTagEditor(id); }, 500);
   });
@@ -262,9 +266,13 @@ function attachRowGestures(el) {
     if (Math.abs(dx) > 8) clearTimeout(timer);
     el.style.transform = `translateX(${dx}px)`;
   });
+  const release = () => {
+    if (pointer != null && el.hasPointerCapture?.(pointer)) el.releasePointerCapture(pointer);
+    pointer = null;
+  };
   const end = async () => {
     if (!dragging) return;
-    dragging = false; clearTimeout(timer);
+    dragging = false; clearTimeout(timer); release();
     // 56px is the positionalThreshold the Android SwipeToDismissBox uses.
     if (Math.abs(dx) >= 56) {
       el.style.transition = 'transform .18s, opacity .18s';
@@ -277,7 +285,9 @@ function attachRowGestures(el) {
     }
   };
   el.addEventListener('pointerup', end);
-  el.addEventListener('pointercancel', () => { dragging = false; clearTimeout(timer); reset(); });
+  el.addEventListener('pointercancel', () => {
+    dragging = false; clearTimeout(timer); release(); reset();
+  });
 }
 
 /* Delete now, restore from the toast -- the Android snackbar behaviour. */
