@@ -796,13 +796,18 @@ function renderSettings() {
   });
 }
 
-/* Nudge towards installing, but only where it is actionable and only once.
+/* Nudge towards installing, wherever that is actionable.
 
    Chrome fires beforeinstallprompt when the app is installable and not
    already installed, and hands over an event that can be replayed on a real
    tap -- so that branch gets a button that does the thing. Safari fires
    nothing and has no API, so iOS gets the manual gesture spelled out instead.
-   Dismissal sticks: an install banner that returns every launch is an advert. */
+   A browser that can neither install nor be instructed is told nothing.
+
+   The offer returns every launch while the app is still not installed: this is
+   the browser copy of an app whose reminders, offline shell and storage all
+   want it on the home screen. Dismissal is per session, so it can be pushed
+   aside for now without being answered once and for all. */
 const INSTALL_DISMISSED = 'bp.install.dismissed';
 let installPrompt = null;
 let onInstallPrompt = null;
@@ -820,7 +825,7 @@ function setupInstallBanner() {
   const bar = $('install-banner');
   if (!bar) return;
   const hide = () => { bar.hidden = true; };
-  if (isInstalled() || localStorage.getItem(INSTALL_DISMISSED) === '1') return;
+  if (isInstalled() || sessionStorage.getItem(INSTALL_DISMISSED) === '1') return;
 
   const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
   const show = () => {
@@ -835,8 +840,11 @@ function setupInstallBanner() {
   };
 
   onInstallPrompt = show;        // in case the event arrives after this runs
+  // Chrome stops firing beforeinstallprompt once installed, so this tab is the
+  // only one that needs telling. Session-scoped like the manual dismissal:
+  // Safari reports neither event, so nothing here can be a permanent answer.
   window.addEventListener('appinstalled', () => {
-    localStorage.setItem(INSTALL_DISMISSED, '1');
+    sessionStorage.setItem(INSTALL_DISMISSED, '1');
     hide();
   });
 
@@ -848,7 +856,7 @@ function setupInstallBanner() {
     try { await e.prompt(); } catch { /* dismissed by the browser */ }
   });
   $('install-close').addEventListener('click', () => {
-    localStorage.setItem(INSTALL_DISMISSED, '1');
+    sessionStorage.setItem(INSTALL_DISMISSED, '1');
     hide();
   });
 
