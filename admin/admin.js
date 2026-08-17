@@ -73,38 +73,34 @@ const until = (iso) => {
   return `în ${Math.round(hours / 24)} zile`;
 };
 
-/* The instructions, deliberately without the code in them.
-   
-   Two reasons. Opening the link redeems the code in whatever browser opens it
-   -- from a chat, the chat's own browser rather than the installed app -- so
-   the steps put installing first and entering the code second; the other order
-   is what burns an invite and produces "it says already used". And a chat app
-   copies a whole message at once, so a code buried in this one would have to
-   be retyped by hand. It goes in a message of its own, which can be
-   long-pressed and copied as it stands. */
+/* The full ?code= link, and the steps that follow from it.
+
+   The app redeems such a link only when it is running as an installed PWA;
+   opened in a browser it shows the code with a copy button instead. So the
+   link is inert until someone deliberately finishes the job from the installed
+   app -- it can be tapped, previewed by a chat app, or retried as often as
+   needed without spending anything. That also means the message carries the
+   code where the recipient needs it, and one message is enough. */
 function inviteMessage(inv) {
-  // The bare site, not the ?code= link: that link redeems on open, so putting
-  // it in a chat hands the invite to the chat's browser the moment anyone taps
-  // it -- including a link preview fetched by someone else entirely. It also
-  // puts the code back in this message, which is what sending it separately
-  // was for. The ?code= link stays available above, for a desktop that is
-  // never going to install anything.
-  const site = String(inv.url).split('?')[0];
   return [
     'Salut! Îți trimit acces la wBP Digitizer — o aplicație pentru urmărirea',
     'tensiunii arteriale. Măsurătorile rămân pe telefonul tău, nu se trimit nicăieri.',
     '',
     '1) Deschide linkul:',
-    site,
+    inv.url,
     '',
-    '2) Adaugă-l pe ecranul principal:',
-    '• Android (Chrome): meniul ⋮ → „Adaugă la ecranul principal”',
+    '2) Pagina îți arată un cod — apasă „Copiază codul”.',
+    '',
+    '3) Adaugă pagina pe ecranul principal:',
+    '• Android (Chrome): butonul „Instalează” din banner, sau meniul ⋮ →',
+    '  „Adaugă la ecranul principal”',
     '• iPhone (Safari): butonul de partajare → „Add to Home Screen”',
     '',
-    '3) Deschide aplicația de pe ecranul principal (nu din browser) și apasă',
-    'butonul camerei, cel cu lacăt. Acolo lipești codul din mesajul următor.',
+    '4) Deschide aplicația de pe ecranul principal, apasă butonul camerei',
+    '(cel cu lacăt) și lipește codul.',
     '',
-    `Codul e valabil ${inv.expires_in_days ?? 7} zile și înregistrează un singur telefon.`,
+    'Linkul poate fi deschis de câte ori e nevoie — nu se consumă nimic până',
+    `nu introduci codul în aplicație. Valabil ${inv.expires_in_days ?? 7} zile, un singur telefon.`,
   ].join('\n');
 }
 
@@ -146,16 +142,15 @@ function showInvite(inv) {
     </div>
     ${inv.url ? `<div class="field">
       <label for="v-msg">Mesaj</label>
-      <div class="val" id="v-msg">Instrucțiuni, fără cod</div>
+      <div class="val" id="v-msg">Mesaj complet, cu link și pași</div>
       <button class="btn small" data-copy-msg="1">Copiază mesajul</button>
       <a class="btn small ghost" target="_blank" rel="noopener"
          href="https://wa.me/?text=${encodeURIComponent(inviteMessage(inv))}">WhatsApp</a>
     </div>` : ''}
     <p class="note">
-      <strong>Trimite două mesaje:</strong> întâi instrucțiunile, apoi codul
-      singur. Un chat copiază mesajul întreg, deci un cod pus între
-      instrucțiuni ar trebui rescris de mână — singur, poate fi ținut apăsat și
-      copiat ca atare.<br>
+      Un singur mesaj e de ajuns: linkul nu înregistrează nimic până când codul
+      nu e introdus din aplicația instalată, iar pagina i-l arată cu un buton de
+      copiere. Poate fi deschis de câte ori e nevoie.<br>
       Un singur dispozitiv, expiră în ${esc(inv.expires_in_days)} zile.
       În prima oră de la folosire codul re-leagă <em>același</em> dispozitiv,
       nu înregistrează altul — deci poate fi introdus întâi în browserul din

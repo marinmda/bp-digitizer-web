@@ -94,13 +94,10 @@ Serve `admin/` from the public root and it achieves nothing — the endpoints it
 calls are not there. Forget the `-X-Admin` strip and anyone can set the header
 themselves, so both halves matter.
 
-`admin/` also composes the message to send. It carries the bare site address
-and how to install, and **not** the code: the `?code=` link redeems on open, so
-in a chat it hands the invite to the chat's own browser the moment anyone taps
-it — whose storage the installed app cannot see. That is what produces "it says
-already used". The code goes as a second message, alone, so the recipient can
-long-press and copy it rather than retyping it out of a paragraph. The
-`?code=` link is still there for a desktop that will never install anything.
+`admin/` also composes the message to send: the invite link and the four steps
+that follow from it, in one message. The link is safe to send because it is
+inert until the code is entered from the installed app — a tap, a chat's link
+preview, or a dozen retries spend nothing.
 
 A `?code=` link is only redeemed when the app is running as an installed PWA.
 Opened in a browser tab it hands the code over instead — shown, copyable, with
