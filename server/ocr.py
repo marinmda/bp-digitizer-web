@@ -43,6 +43,16 @@ class OcrUnavailable(Exception):
     """No API key configured -- the feature is simply off on this deployment."""
 
 
+class OcrUpstreamError(Exception):
+    """Gemini refused the request. Carries its own words, which are usually
+    actionable (billing, quota, key) in a way "try another photo" is not."""
+
+    def __init__(self, status: int, message: str):
+        super().__init__(message)
+        self.status = status
+        self.message = message
+
+
 async def read_monitor(image: bytes, mime: str = "image/jpeg") -> dict:
     if not API_KEY:
         raise OcrUnavailable()
@@ -84,7 +94,17 @@ async def read_monitor(image: bytes, mime: str = "image/jpeg") -> dict:
         # urls at INFO, which would write the key into the container log.
         r = await c.post(ENDPOINT.format(model=MODEL),
                          headers={"x-goog-api-key": API_KEY}, json=payload)
-        r.raise_for_status()
+        if r.status_code != 200:
+            # Surface Gemini's own explanation. A depleted balance and an
+            # unreadable photo are both "it did not work" to the caller
+            # otherwise, and only one of them is fixable by retaking the shot.
+            try:
+                err = r.json().get("error", {})
+                detail = err.get("message") or r.text[:200]
+            except ValueError:
+                detail = r.text[:200]
+            log.warning("gemini %s: %s", r.status_code, detail[:300])
+            raise OcrUpstreamError(r.status_code, detail)
         data = r.json()
 
     cand = (data.get("candidates") or [{}])[0]

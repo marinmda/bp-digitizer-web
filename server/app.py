@@ -132,9 +132,17 @@ async def read_monitor(image: UploadFile = File(...),
     try:
         result = await ocr.read_monitor(data, image.content_type or "image/jpeg")
     except ocr.OcrUnavailable:
+        await store.refund_ocr(device["id"])
         raise HTTPException(503, "OCR is not configured on this server.")
+    except ocr.OcrUpstreamError as exc:
+        # Nothing was read, so the scan should not count against the day.
+        await store.refund_ocr(device["id"])
+        if exc.status == 429:
+            raise HTTPException(503, f"Scanning is temporarily unavailable: {exc.message}")
+        raise HTTPException(502, f"The scanning service refused the request: {exc.message}")
     except Exception as exc:  # noqa: BLE001
         log.warning("ocr failed: %r", exc)
+        await store.refund_ocr(device["id"])
         raise HTTPException(502, "Could not read the display. Try another photo.")
     log.info("ocr for device %s (%d/%d today)", device["id"], used, ocr.DAILY_LIMIT)
     return {**result, "used_today": used, "daily_limit": ocr.DAILY_LIMIT}

@@ -149,6 +149,25 @@ def _bump_ocr_blocking(device_id: int, limit: int) -> tuple[bool, int]:
         return True, used + 1
 
 
+def _refund_ocr_blocking(device_id: int) -> None:
+    day = datetime.now(timezone.utc).date().isoformat()
+    with connect() as con:
+        con.execute(
+            "UPDATE ocr_usage SET count = MAX(count - 1, 0) "
+            "WHERE device_id = ? AND day = ?", (device_id, day),
+        )
+
+
+async def refund_ocr(device_id: int) -> None:
+    """Give a scan back when the upstream call never produced a reading.
+
+    The quota is claimed before the request so two tabs cannot both slip past
+    the limit, which means a failure upstream would otherwise cost the user a
+    scan they never got.
+    """
+    await asyncio.to_thread(_refund_ocr_blocking, device_id)
+
+
 async def bump_ocr(device_id: int, limit: int) -> tuple[bool, int]:
     return await asyncio.to_thread(_bump_ocr_blocking, device_id, limit)
 
