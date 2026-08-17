@@ -1,7 +1,7 @@
 """Convert Android strings.xml into flat JSON locale files.
 
-The Android app already carries 284 strings in 12 languages. Retranslating
-that would be both wasteful and worse -- these are already reviewed.
+The Android app carries its strings in 12 languages, already reviewed.
+Retranslating them would be both wasteful and worse.
 """
 from __future__ import annotations
 
@@ -11,8 +11,11 @@ import sys
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-SRC = Path(sys.argv[1] if len(sys.argv) > 1 else
-           "/home/opc/projects/BloodPressureMonitor/app/src/main/res")
+if len(sys.argv) < 2:
+    sys.exit("usage: convert-strings.py <android-res-dir> [out-dir]\n"
+             "  e.g. convert-strings.py ../BloodPressureMonitor/app/src/main/res")
+
+SRC = Path(sys.argv[1])
 OUT = Path(sys.argv[2] if len(sys.argv) > 2 else "web/i18n")
 OUT.mkdir(parents=True, exist_ok=True)
 
