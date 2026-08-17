@@ -34,8 +34,7 @@ An optional server adds three things, each of which you can decline:
 | Encrypted backup | somewhere to store an opaque blob | recovery if the browser's storage is cleared |
 | Reminders | web push | a nudge at the times you choose |
 
-Server features are gated by a code you generate (`./admin.sh invite "Ana"`,
-or `admin/` served on whatever private surface reaches the API),
+Server features are gated by a code you generate (`./admin.sh invite "Ana"`),
 because OCR costs money and backups cost storage. **The gate covers only those
 three features** — the app itself never asks for a code. Without one the camera
 and bell wear a small lock and lead to the screen where a code goes, rather
@@ -52,10 +51,6 @@ address, with a global ceiling behind it.
 
 ## Managing invites and devices
 
-Two interfaces over the same endpoints — `./admin.sh` for a terminal, and
-`admin/` for a page that makes codes copyable, which is the part a terminal
-does badly.
-
 ```bash
 ./admin.sh invite "Ana"     # create one; prints the code and a link
 ./admin.sh invites          # list, with codes for the ones still usable
@@ -64,9 +59,12 @@ does badly.
 ./admin.sh forget 3         # delete it, and its backup and reminders with it
 ```
 
+There is a graphical console too, but it is not in this repo: it fronts several
+apps at once, so it belongs to none of them.
+
 **Neither carries a credential.** There is no admin password: being able to
-reach the listener is the authorisation. Put the admin API — and the page —
-on a private surface only, and inject the header there:
+reach the listener is the authorisation. Put the admin API on a private surface
+only, and inject the header there:
 
 ```caddyfile
 # private surface: tailnet, VPN, LAN, whatever only you can reach
@@ -75,10 +73,6 @@ handle /bp/api/* {
     reverse_proxy 127.0.0.1:8094 {
         header_up X-Admin 1        # this is what authorises admin
     }
-}
-handle_path /bp-admin/* {
-    root * /path/to/admin
-    file_server
 }
 
 # public surface
@@ -90,20 +84,12 @@ handle /api/* {
 }
 ```
 
-Serve `admin/` from the public root and it achieves nothing — the endpoints it
-calls are not there. Forget the `-X-Admin` strip and anyone can set the header
-themselves, so both halves matter.
+Forget the `-X-Admin` strip and anyone can set the header themselves, so both
+halves matter.
 
-`admin/` also composes the message to send: the invite link and the steps that
-follow from it, in one message. The link is safe to send because it is inert
-until it is opened from the installed app — a tap in a browser, a chat's link
-preview, or a dozen retries spend nothing.
-
-Which is what makes the second tap the whole flow. Install, tap the link
-again, and on Android it opens in the app, which is standalone, which redeems
-it — no code changes hands. The manifest asks for that with
-`"handle_links": "preferred"`. iOS never routes links to an installed PWA, so
-the message keeps the copy-the-code path as the fallback it needs to be.
+Codes are readable only while an invite can still register something:
+redemption wipes the plaintext from the database, leaving the hash. If you
+lose a code before sending it, revoke it and make another.
 
 A `?code=` link is only redeemed when the app is running as an installed PWA.
 Opened in a browser tab it hands the code over instead — shown, copyable, with
@@ -112,10 +98,6 @@ really what you meant. An installed app keeps its own storage, so redeeming in
 a tab registers the tab and leaves the app unlinked, having spent a single-use
 code. Detected with `display-mode: standalone`, and `navigator.standalone` on
 iOS.
-
-Codes are readable only while an invite can still register something:
-redemption wipes the plaintext from the database, leaving the hash. If you
-lose a code before sending it, revoke it and make another.
 
 The server never sees a reading in the clear. Backups are encrypted in the
 browser with AES-GCM under a key derived from your passphrase by PBKDF2
@@ -205,9 +187,6 @@ web/
   i18n/*.json       12 catalogues, converted from the Android strings.xml
   sw.js             offline shell
 server/             the optional server: OCR proxy, backup, push reminders
-admin/              invites and devices, as a page. Serve it only where the
-                    admin API is reachable -- it carries no credential of its
-                    own, exactly like admin.sh
 bin/
   version-imports.py  stamps the build hash into ES module imports
 tools/
