@@ -891,7 +891,7 @@ async function renderServerSection() {
         await srv.redeem($('s-code').value);
         toast(t('settings_server_linked'));
         await renderServerSection();
-        updateScanButton();
+        updateServerUi();
       } catch (e) { err.textContent = e.message; err.hidden = false; }
     });
     return;
@@ -956,7 +956,12 @@ async function configureReminders() {
   // Reminders are delivered by the optional server, so without a link there is
   // nothing to configure -- say so rather than failing mid-dialogue.
   await srv.ready();
-  if (!srv.state.linked) { toast(t('settings_server_locked')); return; }
+  if (!srv.state.linked) {
+    // Say why, then go where the code is entered -- as the locked camera does.
+    toast(t('settings_server_locked'));
+    openServerSettings();
+    return;
+  }
 
   let current = { times: '', enabled: 0 };
   try { current = await srv.getReminders(); } catch { /* none set yet */ }
@@ -1029,6 +1034,25 @@ async function configureReminders() {
    it left no way to find out the feature exists, let alone how to unlock it.
    serverFeatures is only set once /api/health has answered, so an absent
    server still means no button -- there would be nothing to unlock. */
+/* Both controls that a code unlocks, refreshed together -- they answer to the
+   same probe, and one updating without the other is how they drift. */
+function updateServerUi() {
+  updateScanButton();
+  updateReminderButton();
+}
+
+/* Reminders need the server too, so the bell carries the same lock as the
+   camera rather than looking available and then refusing. */
+function updateReminderButton() {
+  const b = $('ab-reminders');
+  if (!b) return;
+  const locked = !srv.state.linked;
+  b.classList.toggle('locked', locked);
+  const label = t(locked ? 'settings_server_locked' : 'dashboard_cd_reminders');
+  b.title = label;
+  b.setAttribute('aria-label', label);
+}
+
 function updateScanButton() {
   const fab = $('fab-scan');
   if (!fab) return;
@@ -1132,10 +1156,12 @@ async function scanPhoto(file) {
    export, help and language, in that order. */
 function renderAppbar() {
   const box = $('appbar-actions');
-  const btn = (id, name, key) =>
-    `<button class="icon-btn" id="${id}" title="${esc(t(key))}" aria-label="${esc(t(key))}">${icon(name, 22)}</button>`;
+  const btn = (id, name, key, extra = '') =>
+    `<button class="icon-btn" id="${id}" title="${esc(t(key))}" aria-label="${
+      esc(t(key))}">${icon(name, 24)}${extra}</button>`;
   box.innerHTML = `
-    ${btn('ab-reminders', 'bell', 'dashboard_cd_reminders')}
+    ${btn('ab-reminders', 'bell', 'dashboard_cd_reminders',
+          `<span class="btn-lock">${icon('lock', 12)}</span>`)}
     ${btn('ab-profile', 'person', 'dashboard_cd_profile')}
     ${btn('ab-import', 'download', 'dashboard_cd_import')}
     <span class="menu-wrap">
@@ -1173,9 +1199,11 @@ function renderAppbar() {
   $('menu-lang').querySelectorAll('[data-loc]').forEach((b) =>
     b.addEventListener('click', async () => {
       await setLocale(b.dataset.loc);
-      applyStatic(); renderAppbar(); renderSettings(); refresh(); updateScanButton();
+      applyStatic(); renderAppbar(); renderSettings(); refresh(); updateServerUi();
     }));
   $('ab-settings').addEventListener('click', () => { renderSettings(); show('settings'); });
+  // Rebuilding the bar drops the lock class, so restore it from what we know.
+  updateReminderButton();
 }
 
 /* HELP_SECTIONS from HelpScreen.kt, same order and the same icons, minus the
@@ -1347,7 +1375,7 @@ async function boot() {
   show('dashboard');
   // Probing is deliberately after first paint: a missing or slow server must
   // never delay an app that does not need one.
-  srv.ready().then(() => { updateScanButton(); }).catch(() => {});
+  srv.ready().then(() => { updateServerUi(); }).catch(() => {});
   const code = new URLSearchParams(location.search).get('code');
   // Only redeem when not already linked: re-opening the invite link
   // otherwise rotates the device token on every visit for no reason.
@@ -1355,7 +1383,7 @@ async function boot() {
     srv.ready().then((st) => (st.linked ? null : srv.redeem(code))).then(() => {
       history.replaceState({}, '', '/');
       toast(t('settings_server_linked'));
-      updateScanButton();
+      updateServerUi();
     }).catch(() => {});
   }
   if ('serviceWorker' in navigator) {
