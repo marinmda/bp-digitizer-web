@@ -59,7 +59,7 @@ address, with a global ceiling behind it.
 ./admin.sh forget 3         # delete it, and its backup and reminders with it
 ```
 
-There is a graphical console too — [admin-console](https://github.com/marinmda/admin-console) — which fronts every
+There is a graphical console too — [pwa-invite-console](https://github.com/marinmda/pwa-invite-console) — which fronts every
 app behind this invite mechanism, so it belongs to none of them. Adding one is
 an entry in its `apps.json`; the endpoints it expects are listed in its README.
 
