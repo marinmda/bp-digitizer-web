@@ -21,7 +21,7 @@ log = logging.getLogger("bp.ocr")
 logging.getLogger("httpx").setLevel(logging.WARNING)
 
 API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
-MODEL = os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash")
 ENDPOINT = ("https://generativelanguage.googleapis.com/v1beta/models/"
             "{model}:generateContent")
 DAILY_LIMIT = int(os.getenv("OCR_DAILY_LIMIT", "50"))
