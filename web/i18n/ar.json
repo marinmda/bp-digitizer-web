@@ -274,6 +274,7 @@
   "settings_backup_done": "تم رفع النسخة",
   "settings_backup_exists": "{0} قراءة محفوظة · {1}",
   "settings_backup_none": "لا توجد نسخة بعد",
+  "settings_backup_note": "تبقى قراءاتك على هذا الجهاز. أنشئ نسخة احتياطية بانتظام.",
   "settings_backup_now": "نسخ احتياطي الآن",
   "settings_backup_passphrase": "اختر عبارة مرور. يخزّن الخادم بيانات مشفرة فقط ولا يمكنه استعادتها.",
   "settings_danger_zone": "منطقة الخطر",

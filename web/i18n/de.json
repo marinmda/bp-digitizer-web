@@ -266,6 +266,7 @@
   "settings_backup_done": "Backup hochgeladen",
   "settings_backup_exists": "{0} Messungen gesichert · {1}",
   "settings_backup_none": "Noch kein Backup",
+  "settings_backup_note": "Ihre Messungen bleiben auf diesem Gerät. Sichern Sie regelmäßig, um eine Kopie zu behalten.",
   "settings_backup_now": "Jetzt sichern",
   "settings_backup_passphrase": "Passphrase wählen. Der Server speichert nur verschlüsselte Daten und kann sie nicht wiederherstellen.",
   "settings_danger_zone": "Gefahrenzone",

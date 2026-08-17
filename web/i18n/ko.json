@@ -264,6 +264,7 @@
   "settings_backup_done": "백업 완료",
   "settings_backup_exists": "{0}건 백업됨 · {1}",
   "settings_backup_none": "저장된 백업 없음",
+  "settings_backup_note": "측정값은 이 기기에만 저장됩니다. 정기적으로 백업하세요.",
   "settings_backup_now": "지금 백업",
   "settings_backup_passphrase": "암호를 정하세요. 서버는 암호화된 데이터만 보관하며 복구할 수 없습니다.",
   "settings_danger_zone": "위험 구역",

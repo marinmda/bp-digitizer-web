@@ -266,6 +266,7 @@
   "settings_backup_done": "Cópia enviada",
   "settings_backup_exists": "{0} leituras guardadas · {1}",
   "settings_backup_none": "Sem cópia guardada",
+  "settings_backup_note": "As suas leituras ficam neste dispositivo. Faça cópia de segurança regularmente.",
   "settings_backup_now": "Copiar agora",
   "settings_backup_passphrase": "Escolha uma palavra-passe. O servidor guarda apenas dados cifrados e não a pode recuperar.",
   "settings_danger_zone": "Zona de perigo",

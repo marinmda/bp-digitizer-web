@@ -283,6 +283,10 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .scan-bar i{display:block;height:100%;width:0;border-radius:2px;background:var(--accent)}
 .scan-card p{margin:0;font-size:.9rem;text-align:center}
 
+/* The export glyph inline in the data note, pointing at the app bar's icon. */
+.note-ico{display:inline-flex;vertical-align:-3px;margin-right:6px;opacity:.75}
+.note-ico svg{display:block}
+
 /* Marks the section the locked camera sends you to, so arriving there does not
    leave you hunting for what changed. */
 @keyframes flash{0%,100%{background:transparent}

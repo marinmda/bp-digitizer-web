@@ -695,41 +695,19 @@ async function importFile(file) {
 
 /* ------------------------------------------------------------- settings -- */
 function renderSettings() {
+  // Language, export and import all live in the app bar; carrying second
+  // copies here meant two file inputs for one job and a button to remember in
+  // two places every time the export menu changed.
   $('settings-body').innerHTML = `
-    <div class="field">
-      <label>${esc(t('settings_language'))}</label>
-      <select id="s-lang">${LOCALES.map((l) =>
-        `<option value="${l}"${l === locale() ? ' selected' : ''}>${
-          new Intl.DisplayNames([l], { type: 'language' }).of(l)}</option>`).join('')}</select>
-    </div>
-    <h2 style="margin:18px 0 8px">${esc(t('dashboard_cd_export'))}</h2>
-    <div class="actions" style="margin-top:0;flex-wrap:wrap">
-      <button class="btn" id="s-json">${esc(t('dashboard_export_json'))}</button>
-      <button class="btn" id="s-csv">${esc(t('dashboard_export_csv'))}</button>
-      <button class="btn" id="s-pdf">${esc(t('dashboard_export_pdf'))}</button>
-      <button class="link" id="s-import">${esc(t('dashboard_cd_import'))}</button>
-      <input type="file" id="s-file" accept=".json,.csv" hidden>
-    </div>
-    <p class="muted" style="margin-top:10px">${esc(t('settings_local_only_note'))}</p>
+    <p class="muted" id="s-data-note"></p>
     <h2 style="margin:22px 0 8px">${esc(t('settings_server_title'))}</h2>
     <div id="s-server"></div>
     <h2 style="margin:22px 0 8px">${esc(t('settings_danger_zone'))}</h2>
     <button class="link" id="s-wipe" style="color:var(--z-crisis)">${
       esc(t('settings_delete_all'))}</button>`;
 
+  renderDataNote();
   renderServerSection();
-  $('s-lang').addEventListener('change', async (e) => {
-    await setLocale(e.target.value);
-    applyStatic(); renderSettings(); refresh(); updateScanButton();
-  });
-  $('s-json').addEventListener('click', exportJson);
-  $('s-csv').addEventListener('click', exportCsv);
-  $('s-pdf').addEventListener('click', exportPdfReport);
-  $('s-import').addEventListener('click', () => $('s-file').click());
-  $('s-file').addEventListener('change', (e) => {
-    if (e.target.files[0]) importFile(e.target.files[0]);
-    e.target.value = '';
-  });
   const ver = $('s-version');
   if (ver) {
     ver.textContent = `build ${BUILD}`;
@@ -751,6 +729,18 @@ function renderSettings() {
   });
 }
 
+/* A linked device has encrypted server backup, so telling it to export for
+   safekeeping is stale advice. An unlinked one has only the export menu -- and
+   that lives behind an icon in the app bar, so the note carries the same icon
+   as a pointer to where it is. */
+function renderDataNote() {
+  const el = $('s-data-note');
+  if (!el) return;
+  el.innerHTML = srv.state.linked
+    ? esc(t('settings_backup_note'))
+    : `<span class="note-ico">${icon('share', 16)}</span>${esc(t('settings_local_only_note'))}`;
+}
+
 /* ------------------------------------------------------ server features -- */
 async function renderServerSection() {
   const box = $('s-server');
@@ -763,6 +753,7 @@ async function renderServerSection() {
   }
   try { await srv.ready(); } catch { /* falls through to absent */ }
   if ($('s-server') !== box) return;        // user navigated away meanwhile
+  renderDataNote();                         // `linked` is only known now
   if (srv.state.present === false) {
     box.innerHTML = `<p class="muted">${esc(t('settings_server_absent'))}</p>`;
     return;

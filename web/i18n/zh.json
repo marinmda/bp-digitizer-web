@@ -264,6 +264,7 @@
   "settings_backup_done": "备份已上传",
   "settings_backup_exists": "已备份 {0} 条 · {1}",
   "settings_backup_none": "尚无备份",
+  "settings_backup_note": "读数仅保存在本设备。请定期备份。",
   "settings_backup_now": "立即备份",
   "settings_backup_passphrase": "设置一个口令。服务器只保存密文，无法为你找回。",
   "settings_danger_zone": "危险区域",

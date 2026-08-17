@@ -270,6 +270,7 @@
   "settings_backup_done": "Копію завантажено",
   "settings_backup_exists": "{0} вимірів збережено · {1}",
   "settings_backup_none": "Копії ще немає",
+  "settings_backup_note": "Ваші виміри лишаються на цьому пристрої. Регулярно створюйте резервну копію.",
   "settings_backup_now": "Створити копію",
   "settings_backup_passphrase": "Оберіть пароль. Сервер зберігає лише зашифровані дані й не може його відновити.",
   "settings_danger_zone": "Небезпечна зона",

@@ -266,6 +266,7 @@
   "settings_backup_done": "बैकअप अपलोड हुआ",
   "settings_backup_exists": "{0} रीडिंग बैकअप · {1}",
   "settings_backup_none": "अभी कोई बैकअप नहीं",
+  "settings_backup_note": "आपकी रीडिंग इसी डिवाइस पर रहती हैं। नियमित रूप से बैकअप लें।",
   "settings_backup_now": "अभी बैकअप लें",
   "settings_backup_passphrase": "पासफ़्रेज़ चुनें। सर्वर केवल एन्क्रिप्टेड डेटा रखता है और इसे पुनर्प्राप्त नहीं कर सकता।",
   "settings_danger_zone": "खतरा क्षेत्र",

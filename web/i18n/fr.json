@@ -266,6 +266,7 @@
   "settings_backup_done": "Sauvegarde envoyée",
   "settings_backup_exists": "{0} mesures sauvegardées · {1}",
   "settings_backup_none": "Aucune sauvegarde",
+  "settings_backup_note": "Vos mesures restent sur cet appareil. Sauvegardez régulièrement pour en garder une copie.",
   "settings_backup_now": "Sauvegarder",
   "settings_backup_passphrase": "Choisissez une phrase secrète. Le serveur ne stocke que des données chiffrées et ne peut pas la récupérer.",
   "settings_danger_zone": "Zone sensible",

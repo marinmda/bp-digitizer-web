@@ -264,6 +264,7 @@
   "settings_backup_done": "バックアップしました",
   "settings_backup_exists": "{0} 件をバックアップ済み · {1}",
   "settings_backup_none": "バックアップはまだありません",
+  "settings_backup_note": "記録はこの端末に保存されます。定期的にバックアップしてください。",
   "settings_backup_now": "今すぐバックアップ",
   "settings_backup_passphrase": "パスフレーズを決めてください。サーバーは暗号化データのみ保存し、復元できません。",
   "settings_danger_zone": "危険な操作",

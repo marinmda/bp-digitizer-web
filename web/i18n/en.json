@@ -266,6 +266,7 @@
   "settings_backup_done": "Backup uploaded",
   "settings_backup_exists": "{0} readings backed up · {1}",
   "settings_backup_none": "No backup stored yet",
+  "settings_backup_note": "Your readings stay on this device. Back up regularly to keep a copy.",
   "settings_backup_now": "Back up now",
   "settings_backup_passphrase": "Choose a passphrase. The server stores only encrypted data and cannot recover this for you.",
   "settings_danger_zone": "Danger zone",
