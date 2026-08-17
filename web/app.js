@@ -415,7 +415,11 @@ addEventListener('resize', () => {
 function syncPreview() {
   const s = Number($('in-sys').value), d = Number($('in-dia').value);
   const p = Number($('in-pulse').value);
-  $('val-sys').textContent = s; $('val-dia').textContent = d; $('val-pulse').textContent = p;
+  // Do not fight the user mid-typing: only mirror into a field they are not in.
+  for (const [id, v] of [['val-sys', s], ['val-dia', d], ['val-pulse', p]]) {
+    const box = $(id);
+    if (document.activeElement !== box) box.value = v;
+  }
   $('preview-sys').textContent = s; $('preview-dia').textContent = d;
   const cat = bp.categorize(s, d);
   const badge = $('preview-cat');
@@ -917,6 +921,44 @@ function applyStatic() {
   document.title = t('app_name');
 }
 
+/* The Android stepper: a tap moves one unit, a hold repeats and accelerates.
+   Constants are ValidationScreen's -- 400ms before repeat, 120ms between the
+   first steps, shaving 8ms each time down to a 30ms floor. */
+const HOLD_DELAY_MS = 400, INITIAL_INTERVAL = 120, MIN_INTERVAL_MS = 30, ACCEL_STEP_MS = 8;
+
+function wireStepper(btn) {
+  const target = $(btn.dataset.for);
+  const delta = Number(btn.dataset.step);
+  let holdTimer = null, repeatTimer = null, interval = INITIAL_INTERVAL;
+
+  const bump = () => {
+    const lo = Number(target.min), hi = Number(target.max);
+    const next = Math.min(hi, Math.max(lo, Number(target.value) + delta));
+    if (next === Number(target.value)) return stop();
+    target.value = next;
+    syncPreview();
+  };
+  const tick = () => {
+    bump();
+    interval = Math.max(MIN_INTERVAL_MS, interval - ACCEL_STEP_MS);
+    repeatTimer = setTimeout(tick, interval);
+  };
+  function stop() {
+    clearTimeout(holdTimer); clearTimeout(repeatTimer);
+    holdTimer = repeatTimer = null; interval = INITIAL_INTERVAL;
+  }
+
+  btn.addEventListener('pointerdown', (e) => {
+    e.preventDefault();                    // no focus ring, no text selection
+    btn.setPointerCapture?.(e.pointerId);
+    bump();                                // a tap is always exactly one step
+    holdTimer = setTimeout(tick, HOLD_DELAY_MS);
+  });
+  for (const ev of ['pointerup', 'pointercancel', 'pointerleave']) {
+    btn.addEventListener(ev, stop);
+  }
+}
+
 function wire() {
   $('fab-add').innerHTML = icon('edit');
   $('fab-add').title = t('dashboard_cd_add_manually');
@@ -945,6 +987,21 @@ function wire() {
   });
   for (const id of ['in-sys', 'in-dia', 'in-pulse']) {
     $(id).addEventListener('input', syncPreview);
+  }
+  document.querySelectorAll('.step').forEach(wireStepper);
+  // Typing a value is the third way in, for when neither dragging nor
+  // stepping is quick enough -- 210 is a long way from 120 either way.
+  for (const [box, slider] of [['val-sys', 'in-sys'], ['val-dia', 'in-dia'],
+                               ['val-pulse', 'in-pulse']]) {
+    $(box).addEventListener('input', () => {
+      const n = Number($(box).value);
+      if (!Number.isFinite(n) || $(box).value === '') return;   // mid-edit
+      const lo = Number($(slider).min), hi = Number($(slider).max);
+      $(slider).value = Math.min(hi, Math.max(lo, n));
+      syncPreview();
+    });
+    // Clamp only on blur, so typing "9" on the way to "95" is not rewritten.
+    $(box).addEventListener('blur', () => { $(box).value = $(slider).value; });
   }
 }
 

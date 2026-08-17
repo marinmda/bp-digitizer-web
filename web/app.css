@@ -95,10 +95,10 @@ h2{font-size:.74rem;margin:0;text-transform:uppercase;letter-spacing:.08em;
 .slash{font-size:2rem;color:var(--muted);margin:0 2px}
 .unit{color:var(--muted);font-size:.9rem;margin-left:6px}
 .cat-badge{width:100%;text-align:center;font-size:.8rem;font-weight:700;margin-top:6px}
-.slider-row{display:block;margin-bottom:14px}
+.slider-row{display:block;margin-bottom:18px}
 .slider-label{display:flex;justify-content:space-between;font-size:.85rem;
   color:var(--muted);margin-bottom:4px}
-.slider-label b{color:var(--text);font-variant-numeric:tabular-nums}
+.slider-label{align-items:center}
 input[type=range]{width:100%;accent-color:var(--accent)}
 .hemo{display:flex;gap:16px;justify-content:center;color:var(--muted);
   font-size:.8rem;margin:4px 0 16px}
@@ -248,3 +248,31 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   display:flex;flex-direction:column;gap:12px}
 .sheet-card h3{margin:0;font-size:1rem;font-weight:600}
 .chips.wrap{flex-wrap:wrap;overflow:visible}
+
+/* --- stepper: minus, slider, plus ---------------------------------------- */
+.stepper{display:flex;align-items:center;gap:10px}
+.stepper input[type=range]{flex:1;min-width:0}
+.step{flex:0 0 40px;height:40px;border-radius:50%;border:1px solid var(--outline);
+  background:transparent;color:var(--text);font:inherit;font-size:1.35rem;
+  line-height:1;cursor:pointer;display:grid;place-items:center;
+  -webkit-user-select:none;user-select:none;touch-action:none}
+.step:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
+.step:active{background:var(--secondary-container);color:var(--on-secondary-container)}
+
+/* The readout doubles as an input, so a value far from the current one can be
+   typed instead of dragged. Styled as text until focused. */
+.val-input{width:4.5em;font:inherit;font-weight:650;text-align:right;
+  font-variant-numeric:tabular-nums;color:var(--text);background:transparent;
+  border:1px solid transparent;border-radius:8px;padding:2px 6px}
+.val-input:focus{border-color:var(--outline);background:var(--bg);outline:none}
+.val-input::-webkit-outer-spin-button,
+.val-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.val-input{-moz-appearance:textfield;appearance:textfield}
+
+/* A thicker track and a larger thumb: the old one was hard to place. */
+input[type=range]{height:36px}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
+  width:26px;height:26px;border-radius:50%;background:var(--accent);
+  border:2px solid var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+input[type=range]::-moz-range-thumb{width:26px;height:26px;border:2px solid var(--surface);
+  border-radius:50%;background:var(--accent)}

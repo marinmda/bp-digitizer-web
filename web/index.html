@@ -55,18 +55,42 @@
         <span class="cat-badge" id="preview-cat"></span>
       </div>
 
-      <label class="slider-row">
-        <span class="slider-label"><span id="lbl-sys"></span><b id="val-sys">120</b></span>
-        <input type="range" id="in-sys" min="60" max="250" step="1" value="120">
-      </label>
-      <label class="slider-row">
-        <span class="slider-label"><span id="lbl-dia"></span><b id="val-dia">80</b></span>
-        <input type="range" id="in-dia" min="35" max="150" step="1" value="80">
-      </label>
-      <label class="slider-row">
-        <span class="slider-label"><span id="lbl-pulse"></span><b id="val-pulse">70</b></span>
-        <input type="range" id="in-pulse" min="30" max="200" step="1" value="70">
-      </label>
+      <div class="slider-row">
+        <span class="slider-label"><span id="lbl-sys"></span>
+          <input class="val-input" id="val-sys" type="number" inputmode="numeric"
+                 min="60" max="250" step="1" value="120"></span>
+        <div class="stepper">
+          <button type="button" class="step" data-step="-1" data-for="in-sys"
+                  aria-label="-1">&minus;</button>
+          <input type="range" id="in-sys" min="60" max="250" step="1" value="120">
+          <button type="button" class="step" data-step="1" data-for="in-sys"
+                  aria-label="+1">+</button>
+        </div>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label"><span id="lbl-dia"></span>
+          <input class="val-input" id="val-dia" type="number" inputmode="numeric"
+                 min="40" max="160" step="1" value="80"></span>
+        <div class="stepper">
+          <button type="button" class="step" data-step="-1" data-for="in-dia"
+                  aria-label="-1">&minus;</button>
+          <input type="range" id="in-dia" min="40" max="160" step="1" value="80">
+          <button type="button" class="step" data-step="1" data-for="in-dia"
+                  aria-label="+1">+</button>
+        </div>
+      </div>
+      <div class="slider-row">
+        <span class="slider-label"><span id="lbl-pulse"></span>
+          <input class="val-input" id="val-pulse" type="number" inputmode="numeric"
+                 min="30" max="200" step="1" value="70"></span>
+        <div class="stepper">
+          <button type="button" class="step" data-step="-1" data-for="in-pulse"
+                  aria-label="-1">&minus;</button>
+          <input type="range" id="in-pulse" min="30" max="200" step="1" value="70">
+          <button type="button" class="step" data-step="1" data-for="in-pulse"
+                  aria-label="+1">+</button>
+        </div>
+      </div>
 
       <div class="hemo" id="hemo"></div>
 
