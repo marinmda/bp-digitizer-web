@@ -24,12 +24,10 @@ usage: ./admin.sh <command>
   revoke <id>        lock a device out
   unrevoke <id>      let it back in
   forget <id>        delete a device
-  source <name> <location> [room]
-                     register a push source (Shelly etc); prints its token once
-  sources            list push sources
-  unsource <id>      revoke a push source
 
 Each invite registers one device. A second phone needs a second invite.
+Within an hour of first use a code re-binds that same device rather than
+registering another, so redeeming again from the installed app is fine.
 USAGE
 }
 
@@ -43,11 +41,5 @@ case "${1:-}" in
   revoke)   post "/api/admin/devices/${2:?id}/revoke" '{"revoked":true}' | j ;;
   unrevoke) post "/api/admin/devices/${2:?id}/revoke" '{"revoked":false}' | j ;;
   forget)   curl -fsS --max-time 15 -X DELETE "$API/api/admin/devices/${2:?id}" | j ;;
-  source)
-    post /api/admin/sources \
-      "{\"name\":\"${2:?name}\",\"location\":\"${3:?location}\",\"room\":\"${4:-}\"}" \
-      | python3 "$ROOT/bin/fmt_source.py" ;;
-  sources)   get /api/admin/sources | j ;;
-  unsource)  post "/api/admin/sources/${2:?id}/revoke" | j ;;
   *) usage; exit 1 ;;
 esac

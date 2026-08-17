@@ -34,7 +34,8 @@ An optional server adds three things, each of which you can decline:
 | Encrypted backup | somewhere to store an opaque blob | recovery if the browser's storage is cleared |
 | Reminders | web push | a nudge at the times you choose |
 
-Server features are gated by a code you generate (`./admin.sh invite "Ana"`),
+Server features are gated by a code you generate (`./admin.sh invite "Ana"`,
+or `admin/` served on whatever private surface reaches the API),
 because OCR costs money and backups cost storage. **The gate covers only those
 three features** — the app itself never asks for a code. Without one the camera
 and bell wear a small lock and lead to the screen where a code goes, rather
@@ -133,6 +134,9 @@ web/
   i18n/*.json       12 catalogues, converted from the Android strings.xml
   sw.js             offline shell
 server/             the optional server: OCR proxy, backup, push reminders
+admin/              invites and devices, as a page. Serve it only where the
+                    admin API is reachable -- it carries no credential of its
+                    own, exactly like admin.sh
 bin/
   version-imports.py  stamps the build hash into ES module imports
 tools/
