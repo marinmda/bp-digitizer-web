@@ -92,17 +92,71 @@ function openTagEditor(id) {
       }));
     $('sheet-save').addEventListener('click', async () => {
       await db.updateReading({ ...row, tags: [...chosen].join(',') });
-      sheet.hidden = true;
+      closeOverlay(dismiss);
+      dismiss();
       refresh();
     });
   };
+  const dismiss = () => { sheet.hidden = true; sheet.onclick = null; };
   draw();
   sheet.hidden = false;
-  sheet.onclick = (e) => { if (e.target === sheet) sheet.hidden = true; };
+  sheet.onclick = (e) => { if (e.target === sheet) { closeOverlay(dismiss); dismiss(); } };
+  openOverlay(dismiss);
 }
 
 /* ------------------------------------------------------------- routing -- */
-function show(view) {
+
+/* A standalone PWA opens on a single history entry, so the platform Back
+   gesture leaves the app rather than backing out of whatever is on screen.
+   Every screen and every overlay therefore adds an entry of its own, and
+   popstate unwinds them in the order they were opened.
+
+   Dismissers for anything currently covering the app, innermost last. Back
+   closes one of these before it touches a screen. */
+const overlays = [];
+let unwinding = false;
+
+function openOverlay(dismiss) {
+  overlays.push(dismiss);
+  history.pushState({ bp: 'overlay' }, '');
+}
+
+/* Called when an overlay is closed by its own controls, so its history entry
+   goes with it -- otherwise Back would have to be pressed once for the entry
+   nobody can see and again for the screen behind it. */
+function closeOverlay(dismiss) {
+  const i = overlays.lastIndexOf(dismiss);
+  if (i === -1) return;                 // popstate already unwound it
+  overlays.splice(i, 1);
+  unwinding = true;
+  history.back();
+}
+
+/* How many entries we have pushed for screens, so returning to the dashboard
+   unwinds all of them in one go rather than assuming a depth of one. */
+let viewDepth = 0;
+
+window.addEventListener('popstate', (e) => {
+  // Our own history.back() from closeOverlay; the work is already done.
+  if (unwinding) { unwinding = false; return; }
+  if (overlays.length) { overlays.pop()(); return; }
+  const st = e.state;
+  const view = st && st.bp === 'view' ? st.view : 'dashboard';
+  viewDepth = view === 'dashboard' ? 0 : Math.max(0, viewDepth - 1);
+  show(view, { pop: true });
+});
+
+function show(view, opts = {}) {
+  if (!opts.pop && view !== state.view) {
+    // The dashboard is the entry the app opened on, so it never adds one of
+    // its own -- going there means dropping whatever was pushed on top.
+    if (view === 'dashboard') {
+      if (viewDepth > 0) { const n = viewDepth; viewDepth = 0; history.go(-n); }
+    } else {
+      history.pushState({ bp: 'view', view }, '');
+      viewDepth += 1;
+    }
+  }
   state.view = view;
   for (const v of ['dashboard', 'add', 'profile', 'settings', 'help']) {
     $(`view-${v}`).hidden = v !== view;
@@ -737,8 +791,17 @@ function askPassphrase({ title, message, autocomplete }) {
   return new Promise((resolve) => {
     const sheet = $('sheet');
     let done = false;
+    // Back dismisses without a value; the buttons go through close().
+    const dismiss = () => {
+      if (done) return;
+      done = true;
+      sheet.hidden = true;
+      sheet.onclick = null;
+      resolve(null);
+    };
     const close = (value) => {
       if (done) return;
+      closeOverlay(dismiss);
       done = true;
       sheet.hidden = true;
       sheet.onclick = null;
@@ -762,6 +825,7 @@ function askPassphrase({ title, message, autocomplete }) {
       </div>`;
     sheet.hidden = false;
     sheet.onclick = (e) => { if (e.target === sheet) close(null); };
+    openOverlay(dismiss);
 
     const input = $('pass-input');
     const eye = $('pass-eye');
@@ -930,9 +994,11 @@ async function configureReminders() {
       </div>
     </div>`;
   sheet.hidden = false;
-  const close = () => { sheet.hidden = true; };
+  const dismiss = () => { sheet.hidden = true; sheet.onclick = null; };
+  const close = () => { closeOverlay(dismiss); dismiss(); };
   sheet.onclick = (e) => { if (e.target === sheet) close(); };
   $('rm-cancel').addEventListener('click', close);
+  openOverlay(dismiss);
   $('rm-ok').addEventListener('click', async () => {
     const on = $('rm-on').checked;
     const times = [$('rm-am').value, $('rm-pm').value].filter(Boolean);
@@ -1028,11 +1094,14 @@ async function scanPhoto(file) {
   const ctrl = new AbortController();
   const cancel = () => ctrl.abort();
   $('scan-cancel').addEventListener('click', cancel);
+  // Back during a scan means the same thing the Cancel button does.
+  openOverlay(cancel);
   // Reloading mid-request abandons a scan that has already been paid for.
   const guard = (e) => { e.preventDefault(); e.returnValue = ''; };
   window.addEventListener('beforeunload', guard);
 
   const finish = () => {
+    closeOverlay(cancel);
     timers.forEach(clearTimeout);
     window.removeEventListener('beforeunload', guard);
     $('scan-cancel').removeEventListener('click', cancel);
