@@ -315,23 +315,34 @@ function drawChart() {
   (state.mode === 'scatter' ? drawScatter : drawTrend)(svg, rows, W, H, PAD, ticks);
 }
 
-/* The Android chart fixes the Y axis at 40–180 so charts stay comparable
-   between sessions; keeping that avoids a 3 mmHg wobble filling the frame. */
-const Y_MIN = 40, Y_MAX = 180;
+/* Y-axis bounds, the same rule as BPTrendChart:
+     under a day of span (or a lone reading) → the fixed 40-180 frame, so a
+       3 mmHg wobble cannot fill the viewport;
+     a day or more → pad by 5 and snap outward to the nearest 10, so the chart
+       fills the viewport with the range actually recorded. */
+function trendBounds(rows) {
+  const span = rows[rows.length - 1].timestamp - rows[0].timestamp;
+  if (rows.length < 2 || span < 864e5) return [40, 180];
+  const lo = Math.min(...rows.map((r) => Math.min(r.systolic, r.diastolic)));
+  const hi = Math.max(...rows.map((r) => Math.max(r.systolic, r.diastolic)));
+  return [Math.floor((lo - 5) / 10) * 10, Math.ceil((hi + 5) / 10) * 10];
+}
 
 function drawTrend(svg, rows, W, H, PAD, ticks) {
   const xs = rows.map((r) => r.timestamp);
   const x0 = Math.min(...xs), x1 = Math.max(...xs);
+  const [yMin, yMax] = trendBounds(rows);
   const X = (v) => PAD.l + ((v - x0) / ((x1 - x0) || 1)) * (W - PAD.l - PAD.r);
-  const Y = (v) => H - PAD.b - ((v - Y_MIN) / (Y_MAX - Y_MIN)) * (H - PAD.t - PAD.b);
+  const Y = (v) => H - PAD.b - ((v - yMin) / (yMax - yMin)) * (H - PAD.t - PAD.b);
 
   let grid = '', labels = '';
-  for (let v = 40; v <= 180; v += 35) {
+  for (const v of niceTicks(yMin, yMax)) {
     grid += `<line class="grid" x1="${PAD.l}" y1="${Y(v).toFixed(1)}" x2="${W - PAD.r}" y2="${Y(v).toFixed(1)}"/>`;
     labels += `<text class="axis" x="4" y="${(Y(v) + 4).toFixed(1)}">${v}</text>`;
   }
-  // 120 / 80 reference lines, as in the app.
+  // 120 / 80 reference lines, drawn only when they fall inside the plot.
   for (const v of [120, 80]) {
+    if (v < yMin || v > yMax) continue;
     grid += `<line class="refline" x1="${PAD.l}" y1="${Y(v).toFixed(1)}" x2="${W - PAD.r}" y2="${Y(v).toFixed(1)}"/>`;
   }
   for (let i = 0; i <= ticks; i++) {
@@ -353,19 +364,52 @@ function drawTrend(svg, rows, W, H, PAD, ticks) {
   attachCursor(svg, rows, X);
 }
 
+/* Axis bounds, ported from BPScatter3DChart: tight to the data with a little
+   breathing room, so each range chip gets a plot its own readings fill. A
+   fixed 40-140 x 70-220 frame -- which is what this used to draw -- squeezes a
+   normal person's readings into one corner and hides the spread that is the
+   whole point of the scatter. */
+function axisBounds(lo, hi) {
+  const pad = Math.max(2, (hi - lo) * 0.06);
+  return [lo - pad, hi + pad];
+}
+
+/* Round tick values inside [lo, hi] with a 1/2/5 x 10^n step, aiming for about
+   four intervals. Also BPScatter3DChart's, so the two apps label alike. */
+function niceTicks(lo, hi) {
+  if (hi - lo <= 0) return [lo];
+  const rough = (hi - lo) / 4;
+  const pow = 10 ** Math.floor(Math.log10(rough));
+  const n = rough / pow;
+  const step = (n < 1.5 ? 1 : n < 3 ? 2 : n < 7 ? 5 : 10) * pow;
+  const out = [];
+  for (let v = Math.ceil(lo / step) * step; v <= hi + 0.01; v += step) out.push(Math.round(v));
+  return out;
+}
+
 function drawScatter(svg, rows, W, H, PAD) {
-  const X = (v) => PAD.l + ((v - 40) / (140 - 40)) * (W - PAD.l - PAD.r);   // diastolic
-  const Y = (v) => H - PAD.b - ((v - 70) / (220 - 70)) * (H - PAD.t - PAD.b); // systolic
+  const sys = rows.map((r) => r.systolic);
+  const dia = rows.map((r) => r.diastolic);
+  const [yMin, yMax] = axisBounds(Math.min(...sys), Math.max(...sys));
+  const [xMin, xMax] = axisBounds(Math.min(...dia), Math.max(...dia));
+  const X = (v) => PAD.l + ((v - xMin) / (xMax - xMin)) * (W - PAD.l - PAD.r);   // diastolic
+  const Y = (v) => H - PAD.b - ((v - yMin) / (yMax - yMin)) * (H - PAD.t - PAD.b); // systolic
   let grid = '', labels = '';
-  for (let v = 70; v <= 220; v += 30) {
+  for (const v of niceTicks(yMin, yMax)) {
     grid += `<line class="grid" x1="${PAD.l}" y1="${Y(v).toFixed(1)}" x2="${W - PAD.r}" y2="${Y(v).toFixed(1)}"/>`;
     labels += `<text class="axis" x="4" y="${(Y(v) + 4).toFixed(1)}">${v}</text>`;
   }
-  for (let v = 40; v <= 140; v += 25) {
+  for (const v of niceTicks(xMin, xMax)) {
     labels += `<text class="axis" x="${X(v).toFixed(1)}" y="${H - 6}" text-anchor="middle">${v}</text>`;
   }
-  grid += `<line class="refline" x1="${PAD.l}" y1="${Y(120).toFixed(1)}" x2="${W - PAD.r}" y2="${Y(120).toFixed(1)}"/>`
-        + `<line class="refline" x1="${X(80).toFixed(1)}" y1="${PAD.t}" x2="${X(80).toFixed(1)}" y2="${H - PAD.b}"/>`;
+  // The 120/80 guides are only drawn when they fall inside the plot; with the
+  // axes now tracking the data they can sit outside it.
+  if (120 >= yMin && 120 <= yMax) {
+    grid += `<line class="refline" x1="${PAD.l}" y1="${Y(120).toFixed(1)}" x2="${W - PAD.r}" y2="${Y(120).toFixed(1)}"/>`;
+  }
+  if (80 >= xMin && 80 <= xMax) {
+    grid += `<line class="refline" x1="${X(80).toFixed(1)}" y1="${PAD.t}" x2="${X(80).toFixed(1)}" y2="${H - PAD.b}"/>`;
+  }
   const dots = rows.map((r) =>
     `<circle cx="${X(r.diastolic).toFixed(1)}" cy="${Y(r.systolic).toFixed(1)}" r="4.5"
        fill="${ZONE_COLOR[r.category]}" opacity=".8" data-id="${r.id}"><title>${
