@@ -793,12 +793,23 @@ async function configureReminders() {
     const on = $('rm-on').checked;
     const times = [$('rm-am').value, $('rm-pm').value].filter(Boolean);
     close();
+    // Save the preference before asking for anything. Subscribing can fail --
+    // permission refused, no push support -- and losing the times the user just
+    // chose because the browser said no to notifications is its own bug.
     try {
-      if (on) await srv.subscribePush();
       await srv.setReminders(times, on);
-      toast(on ? t('settings_reminders_set', times.join(', ')) : t('settings_reminders_off'));
     } catch (e) {
-      toast(e.message === 'permission-denied' ? t('settings_reminders_denied') : e.message);
+      toast(e.message);
+      return;
+    }
+    if (!on) { toast(t('settings_reminders_off')); return; }
+    try {
+      await srv.subscribePush();
+      toast(t('settings_reminders_set', times.join(', ')));
+    } catch (e) {
+      // Saved, but undeliverable until the browser allows notifications.
+      toast(e.message === 'permission-denied' || e.message === 'no-push-support'
+        ? t('reminders_notif_perm_desc') : e.message);
     }
   });
 }
