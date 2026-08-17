@@ -59,8 +59,9 @@ address, with a global ceiling behind it.
 ./admin.sh forget 3         # delete it, and its backup and reminders with it
 ```
 
-There is a graphical console too, but it is not in this repo: it fronts several
-apps at once, so it belongs to none of them.
+There is a graphical console too — [admin-console](https://github.com/marinmda/admin-console) — which fronts every
+app behind this invite mechanism, so it belongs to none of them. Adding one is
+an entry in its `apps.json`; the endpoints it expects are listed in its README.
 
 **Neither carries a credential.** There is no admin password: being able to
 reach the listener is the authorisation. Put the admin API on a private surface
