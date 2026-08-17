@@ -154,7 +154,10 @@ and the calls cost real money.
   chosen, or as a direct download that skips the dialog at the cost of pages
   being pictures
 - **12 languages**, carried over from the Android app rather than re-translated
-- Installs to the home screen; works offline
+- Installs to the home screen; works offline. A banner offers this where it
+  can be acted on — Chrome gets a button wired to `beforeinstallprompt`, iOS
+  gets the Share-menu gesture spelled out, and a desktop that can do neither
+  is not told about it. Dismissing it is permanent
 
 ## What it deliberately does not do
 

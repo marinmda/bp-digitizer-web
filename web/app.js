@@ -796,6 +796,65 @@ function renderSettings() {
   });
 }
 
+/* Nudge towards installing, but only where it is actionable and only once.
+
+   Chrome fires beforeinstallprompt when the app is installable and not
+   already installed, and hands over an event that can be replayed on a real
+   tap -- so that branch gets a button that does the thing. Safari fires
+   nothing and has no API, so iOS gets the manual gesture spelled out instead.
+   Dismissal sticks: an install banner that returns every launch is an advert. */
+const INSTALL_DISMISSED = 'bp.install.dismissed';
+let installPrompt = null;
+let onInstallPrompt = null;
+
+/* Registered at module scope, not from boot: Chrome fires this around load,
+   which is before an async boot has finished awaiting its locale and its
+   database. A listener attached later simply never hears it. */
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();            // keep the event for a tap of our own
+  installPrompt = e;
+  if (onInstallPrompt) onInstallPrompt();
+});
+
+function setupInstallBanner() {
+  const bar = $('install-banner');
+  if (!bar) return;
+  const hide = () => { bar.hidden = true; };
+  if (isInstalled() || localStorage.getItem(INSTALL_DISMISSED) === '1') return;
+
+  const isIOS = /iP(hone|ad|od)/.test(navigator.userAgent);
+  const show = () => {
+    // Nothing to say on a desktop browser that will not install and cannot be
+    // told how; the banner appears only where it leads somewhere.
+    if (!installPrompt && !isIOS) return;
+    $('install-text').textContent =
+      `${t('install_banner_body')}${installPrompt ? '' : ` ${t('install_banner_ios')}`}`;
+    $('install-go').textContent = t('install_banner_action');
+    $('install-go').hidden = !installPrompt;
+    bar.hidden = false;
+  };
+
+  onInstallPrompt = show;        // in case the event arrives after this runs
+  window.addEventListener('appinstalled', () => {
+    localStorage.setItem(INSTALL_DISMISSED, '1');
+    hide();
+  });
+
+  $('install-go').addEventListener('click', async () => {
+    if (!installPrompt) return;
+    const e = installPrompt;
+    installPrompt = null;        // a prompt event may only be used once
+    hide();
+    try { await e.prompt(); } catch { /* dismissed by the browser */ }
+  });
+  $('install-close').addEventListener('click', () => {
+    localStorage.setItem(INSTALL_DISMISSED, '1');
+    hide();
+  });
+
+  show();                        // iOS has no event to wait for
+}
+
 /* An installed PWA has its own storage, separate from the browser that
    installed it. So redeeming an invite in a tab registers the tab -- and
    spends the code, which is single-use -- while the app the recipient
@@ -1466,6 +1525,7 @@ async function boot() {
   applyStatic();
   wire();
   renderAppbar();
+  setupInstallBanner();
   state.rangeDays = (await db.getKV('rangeDays')) ?? 30;
   state.mode = (await db.getKV('chartMode')) || 'trend';
   // Defaults on, matching DashboardViewModel's smoothBursts = true.

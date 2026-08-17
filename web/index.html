@@ -31,6 +31,13 @@
       <div class="appbar-actions" id="appbar-actions"></div>
     </header>
 
+    <!-- Only when running in a browser; see setupInstallBanner. -->
+    <div class="install-banner" id="install-banner" hidden>
+      <span id="install-text"></span>
+      <button class="btn" id="install-go" hidden></button>
+      <button class="icon-btn" id="install-close" aria-label="×">×</button>
+    </div>
+
     <div class="chips" id="range-chips"></div>
     <div class="seg" id="mode-chips"></div>
     <div class="chart-wrap">

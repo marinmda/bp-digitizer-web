@@ -168,6 +168,17 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .icon-btn.locked .btn-lock svg{width:11px;height:11px}
 .appbar-actions .icon-btn:hover{background:color-mix(in srgb,var(--text) 8%,transparent)}
 
+/* --- install banner ------------------------------------------------------ */
+.install-banner[hidden]{display:none}
+.install-banner{display:flex;align-items:center;gap:10px;flex-wrap:wrap;
+  background:var(--surface-variant);color:var(--on-surface-variant);
+  border-radius:14px;padding:10px 8px 10px 14px;margin:2px 0 6px;
+  font-size:.85rem;line-height:1.4}
+.install-banner span{flex:1;min-width:150px}
+.install-banner .btn{flex:none;padding:8px 16px;font-size:.85rem}
+.install-banner .icon-btn{flex:none;width:32px;height:32px;font-size:1.2rem;
+  display:grid;place-items:center;border-radius:50%}
+
 /* --- filter chips (RangeChipRow) ---------------------------------------- */
 .chips{display:flex;gap:8px;align-items:center;flex-wrap:nowrap;overflow-x:auto;
   padding:8px 0;scrollbar-width:none}
