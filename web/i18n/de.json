@@ -277,6 +277,7 @@
   "settings_local_only_note": "Ihre Messungen bleiben auf diesem Gerät. Exportieren Sie regelmäßig als Sicherung.",
   "settings_ocr_available": "Kamera-Scan verfügbar · bis zu {0} pro Tag",
   "settings_ocr_unconfigured": "Kamera-Scan ist auf diesem Server nicht eingerichtet.",
+  "settings_passphrase_show": "Passphrase anzeigen",
   "settings_reminders": "Erinnerungen",
   "settings_reminders_denied": "Benachrichtigungen sind blockiert. Bitte für diese Seite erlauben.",
   "settings_reminders_off": "Erinnerungen aus",

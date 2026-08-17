@@ -277,6 +277,7 @@
   "settings_local_only_note": "As suas leituras ficam neste dispositivo. Exporte regularmente como cópia.",
   "settings_ocr_available": "Digitalização disponível · até {0} por dia",
   "settings_ocr_unconfigured": "A digitalização não está configurada neste servidor.",
+  "settings_passphrase_show": "Mostrar a palavra-passe",
   "settings_reminders": "Lembretes",
   "settings_reminders_denied": "As notificações estão bloqueadas. Permita-as para este site.",
   "settings_reminders_off": "Lembretes desligados",

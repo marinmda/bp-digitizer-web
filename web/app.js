@@ -729,6 +729,59 @@ function renderSettings() {
   });
 }
 
+/* prompt() renders the passphrase in clear text on screen and in the platform
+   dialog's own history, which is the wrong place for the one secret the server
+   deliberately cannot recover. This is the same bottom sheet the rest of the
+   app uses, with a masked field and a reveal toggle -- blind typing is worse
+   than no masking when a typo produces a backup nobody can open.
+   Resolves to the passphrase, or null if dismissed. */
+function askPassphrase({ title, message, autocomplete }) {
+  return new Promise((resolve) => {
+    const sheet = $('sheet');
+    let done = false;
+    const close = (value) => {
+      if (done) return;
+      done = true;
+      sheet.hidden = true;
+      sheet.onclick = null;
+      resolve(value);
+    };
+    sheet.innerHTML = `
+      <div class="sheet-card">
+        <h3>${esc(title)}</h3>
+        <p class="muted" style="margin:0">${esc(message)}</p>
+        <div class="pass">
+          <input type="password" id="pass-input" autocomplete="${autocomplete}"
+                 autocapitalize="off" autocorrect="off" spellcheck="false">
+          <button class="icon-btn" id="pass-eye" type="button" aria-pressed="false"
+                  title="${esc(t('settings_passphrase_show'))}"
+                  aria-label="${esc(t('settings_passphrase_show'))}">${icon('eye', 20)}</button>
+        </div>
+        <div class="actions">
+          <button class="link" id="pass-cancel">${esc(t('action_cancel'))}</button>
+          <button class="btn" id="pass-ok">${esc(t('action_ok'))}</button>
+        </div>
+      </div>`;
+    sheet.hidden = false;
+    sheet.onclick = (e) => { if (e.target === sheet) close(null); };
+
+    const input = $('pass-input');
+    const eye = $('pass-eye');
+    eye.addEventListener('click', () => {
+      const shown = input.type === 'text';
+      input.type = shown ? 'password' : 'text';
+      eye.setAttribute('aria-pressed', String(!shown));
+      eye.innerHTML = icon(shown ? 'eye' : 'eye-off', 20);
+      input.focus();
+    });
+    const submit = () => close(input.value || null);
+    $('pass-ok').addEventListener('click', submit);
+    $('pass-cancel').addEventListener('click', () => close(null));
+    input.addEventListener('keydown', (e) => { if (e.key === 'Enter') submit(); });
+    input.focus();
+  });
+}
+
 /* A linked device has encrypted server backup, so telling it to export for
    safekeeping is stale advice. An unlinked one has only the export menu -- and
    that lives behind an icon in the app bar, so the note carries the same icon
@@ -801,7 +854,12 @@ async function renderServerSection() {
   }).catch(() => {});
 
   $('s-backup').addEventListener('click', async () => {
-    const pass = prompt(t('settings_backup_passphrase'));
+    const pass = await askPassphrase({
+      title: t('settings_backup_now'), message: t('settings_backup_passphrase'),
+      // new-password so a password manager offers to store the one secret the
+      // server cannot recover, rather than autofilling something unrelated.
+      autocomplete: 'new-password',
+    });
     if (!pass) return;
     try {
       await srv.backup(pass, {
@@ -813,7 +871,10 @@ async function renderServerSection() {
   });
 
   $('s-restore').addEventListener('click', async () => {
-    const pass = prompt(t('settings_restore_passphrase'));
+    const pass = await askPassphrase({
+      title: t('settings_restore'), message: t('settings_restore_passphrase'),
+      autocomplete: 'current-password',
+    });
     if (!pass) return;
     try {
       const data = await srv.restore(pass);

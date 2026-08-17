@@ -285,6 +285,7 @@
   "settings_local_only_note": "تبقى قراءاتك على هذا الجهاز. صدّرها بانتظام للنسخ الاحتياطي.",
   "settings_ocr_available": "المسح متاح · حتى {0} يوميًا",
   "settings_ocr_unconfigured": "المسح غير مهيأ على هذا الخادم.",
+  "settings_passphrase_show": "إظهار عبارة المرور",
   "settings_reminders": "التذكيرات",
   "settings_reminders_denied": "الإشعارات محظورة. اسمح بها لهذا الموقع.",
   "settings_reminders_off": "تم إيقاف التذكيرات",

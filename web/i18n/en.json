@@ -277,6 +277,7 @@
   "settings_local_only_note": "Your readings stay on this device. Export regularly to keep a backup.",
   "settings_ocr_available": "Camera scanning available · up to {0} a day",
   "settings_ocr_unconfigured": "Camera scanning is not configured on this server.",
+  "settings_passphrase_show": "Show passphrase",
   "settings_reminders": "Reminders",
   "settings_reminders_denied": "Notifications are blocked. Allow them for this site.",
   "settings_reminders_off": "Reminders turned off",

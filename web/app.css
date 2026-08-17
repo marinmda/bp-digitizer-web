@@ -318,6 +318,14 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   border-radius:28px 28px 0 0;padding:20px 16px calc(28px + env(safe-area-inset-bottom));
   display:flex;flex-direction:column;gap:12px}
 .sheet-card h3{margin:0;font-size:1rem;font-weight:600}
+/* Masked passphrase field with its reveal toggle sitting inside the box. */
+.pass{display:flex;align-items:center;gap:4px;padding:0 4px 0 12px;
+  border:1px solid var(--border);border-radius:11px;background:var(--bg)}
+.pass input{flex:1;min-width:0;font:inherit;padding:11px 0;border:0;
+  background:none;color:var(--text);letter-spacing:.04em}
+.pass input:focus{outline:none}
+.pass:focus-within{border-color:var(--outline)}
+.pass .icon-btn{flex:none;color:var(--muted)}
 .chips.wrap{flex-wrap:wrap;overflow:visible}
 
 /* --- stepper: minus, slider, plus ---------------------------------------- */

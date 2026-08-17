@@ -275,6 +275,7 @@
   "settings_local_only_note": "读数仅保存在本设备。请定期导出以备份。",
   "settings_ocr_available": "可用拍照识别 · 每天最多 {0} 次",
   "settings_ocr_unconfigured": "此服务器未配置拍照识别。",
+  "settings_passphrase_show": "显示口令",
   "settings_reminders": "提醒",
   "settings_reminders_denied": "通知被阻止，请为本站点允许。",
   "settings_reminders_off": "提醒已关闭",

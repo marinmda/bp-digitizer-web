@@ -275,6 +275,7 @@
   "settings_local_only_note": "記録はこの端末に保存されます。バックアップのため定期的に書き出してください。",
   "settings_ocr_available": "カメラ読み取り可 · 1日 {0} 回まで",
   "settings_ocr_unconfigured": "このサーバーではカメラ読み取りは未設定です。",
+  "settings_passphrase_show": "パスフレーズを表示",
   "settings_reminders": "リマインダー",
   "settings_reminders_denied": "通知がブロックされています。このサイトで許可してください。",
   "settings_reminders_off": "リマインダーを解除しました",

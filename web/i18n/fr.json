@@ -277,6 +277,7 @@
   "settings_local_only_note": "Vos mesures restent sur cet appareil. Exportez régulièrement pour les sauvegarder.",
   "settings_ocr_available": "Scan disponible · jusqu'à {0} par jour",
   "settings_ocr_unconfigured": "Le scan n'est pas configuré sur ce serveur.",
+  "settings_passphrase_show": "Afficher la phrase secrète",
   "settings_reminders": "Rappels",
   "settings_reminders_denied": "Les notifications sont bloquées. Autorisez-les pour ce site.",
   "settings_reminders_off": "Rappels désactivés",

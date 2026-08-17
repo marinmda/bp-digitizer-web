@@ -281,6 +281,7 @@
   "settings_local_only_note": "Ваші виміри лишаються на цьому пристрої. Регулярно експортуйте для резервної копії.",
   "settings_ocr_available": "Сканування доступне · до {0} на день",
   "settings_ocr_unconfigured": "Сканування не налаштоване на цьому сервері.",
+  "settings_passphrase_show": "Показати пароль",
   "settings_reminders": "Нагадування",
   "settings_reminders_denied": "Сповіщення заблоковані. Дозвольте їх для цього сайту.",
   "settings_reminders_off": "Нагадування вимкнено",

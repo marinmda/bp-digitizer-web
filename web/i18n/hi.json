@@ -277,6 +277,7 @@
   "settings_local_only_note": "आपकी रीडिंग इसी डिवाइस पर रहती हैं। बैकअप के लिए नियमित रूप से निर्यात करें।",
   "settings_ocr_available": "कैमरा स्कैन उपलब्ध · प्रतिदिन {0} तक",
   "settings_ocr_unconfigured": "इस सर्वर पर कैमरा स्कैन कॉन्फ़िगर नहीं है।",
+  "settings_passphrase_show": "पासफ़्रेज़ दिखाएँ",
   "settings_reminders": "रिमाइंडर",
   "settings_reminders_denied": "सूचनाएँ अवरुद्ध हैं। इस साइट के लिए अनुमति दें।",
   "settings_reminders_off": "रिमाइंडर बंद",

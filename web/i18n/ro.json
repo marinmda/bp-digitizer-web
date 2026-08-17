@@ -279,6 +279,7 @@
   "settings_local_only_note": "Măsurătorile rămân pe acest dispozitiv. Exportă periodic pentru siguranță.",
   "settings_ocr_available": "Scanare cu camera disponibilă · până la {0} pe zi",
   "settings_ocr_unconfigured": "Scanarea cu camera nu este configurată pe acest server.",
+  "settings_passphrase_show": "Arată parola",
   "settings_reminders": "Memento-uri",
   "settings_reminders_denied": "Notificările sunt blocate. Permite-le pentru acest site.",
   "settings_reminders_off": "Memento-uri oprite",
