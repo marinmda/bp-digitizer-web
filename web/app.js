@@ -68,7 +68,7 @@ const toast = (msg, action) => {
 function openTagEditor(id) {
   const row = state.readings.find((r) => r.id === id);
   if (!row) return;
-  const chosen = new Set(String(row.tags || '').split(',').filter(Boolean));
+  const chosen = new Set(db.normalizeTags(row.tags).split(',').filter(Boolean));
   const sheet = $('sheet');
   const draw = () => {
     sheet.innerHTML = `
@@ -227,7 +227,7 @@ function renderHistory() {
   // category badge on the right, with notes and tags underneath.
   $('history').innerHTML = rows.map((r) => {
     const pulse = r.pulse ? t('dashboard_reading_pulse_format', r.pulse) : '';
-    const tags = (r.tags || '').split(',').filter(Boolean).map((x) => t(x)).join(' · ');
+    const tags = db.normalizeTags(r.tags).split(',').filter(Boolean).map((x) => t(x)).join(' · ');
     return `<div class="row" data-id="${r.id}">
         <div class="row-main">
           <div class="row-time">${esc(fmtDate(r.timestamp))}</div>
@@ -428,7 +428,7 @@ function syncPreview() {
 
 async function openEntry(existing) {
   state.editing = existing || null;
-  state.selectedTags = new Set((existing?.tags || '').split(',').filter(Boolean));
+  state.selectedTags = new Set(db.normalizeTags(existing?.tags).split(',').filter(Boolean));
   // Sliders start from the last reading, as in the app: the next measurement
   // is far more likely to be near the previous one than near 120/80.
   const seed = existing || (await db.lastReading()) || { systolic: 120, diastolic: 80, pulse: 70 };
@@ -559,7 +559,7 @@ async function exportCsv() {
   const head = ['timestamp', 'iso', 'systolic', 'diastolic', 'pulse', 'category', 'tags', 'notes'];
   const body = rows.map((r) => [
     r.timestamp, new Date(r.timestamp).toISOString(), r.systolic, r.diastolic,
-    r.pulse ?? '', r.category, (r.tags || '').replace(/,/g, ' '),
+    r.pulse ?? '', r.category, db.normalizeTags(r.tags).replace(/,/g, ' '),
     (r.notes || '').replace(/"/g, '""'),
   ].map((v) => (/[",\n]/.test(String(v)) ? `"${v}"` : v)).join(','));
   download(`bp-${stamp()}.csv`, [head.join(','), ...body].join('\n'), 'text/csv');
@@ -580,7 +580,7 @@ async function importFile(file) {
           systolic: Number(o.systolic), diastolic: Number(o.diastolic),
           pulse: Number(o.pulse) || null,
           category: o.category || bp.categorize(Number(o.systolic), Number(o.diastolic)),
-          tags: o.tags || '', notes: o.notes || null,
+          tags: db.normalizeTags(o.tags), notes: o.notes || null,
         };
       });
     } else {
@@ -588,7 +588,9 @@ async function importFile(file) {
       rows = data.readings || data;
       if (data.profile && !state.profile.birthYear) await db.setKV('profile', data.profile);
     }
-    rows = rows.filter((r) => r.timestamp && r.systolic && r.diastolic);
+    rows = rows
+      .filter((r) => r.timestamp && r.systolic && r.diastolic)
+      .map((r) => ({ ...r, tags: db.normalizeTags(r.tags) }));
     if (!rows.length) { toast(t('dashboard_snack_import_none')); return; }
     const { added, skipped } = await db.importReadings(rows);
     toast(added ? t('dashboard_snack_imported', added) + (skipped ? ` (${skipped}?)` : '')

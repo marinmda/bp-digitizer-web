@@ -39,6 +39,20 @@ async function tx(store, mode, fn) {
   });
 }
 
+/* Tags reach us in three shapes: this app's comma-joined `tag_*` keys, the
+   Android export's JSON array of BpTag enum names, and the odd hand-edited
+   string. Normalise all of them to one comma-joined key list, because
+   everything downstream calls .split(',') on it. */
+export function normalizeTags(v) {
+  const parts = Array.isArray(v) ? v : String(v ?? '').split(',');
+  return parts
+    .map((x) => String(x).trim())
+    .filter(Boolean)
+    // BpTag.ON_WAKING and tag_on_waking are the same tag under two spellings.
+    .map((x) => (x.startsWith('tag_') ? x : `tag_${x.toLowerCase()}`))
+    .join(',');
+}
+
 export async function addReading(r) {
   const row = {
     timestamp: r.timestamp ?? Date.now(),
@@ -47,7 +61,7 @@ export async function addReading(r) {
     pulse: r.pulse ?? null,
     category: r.category,
     notes: r.notes ?? null,
-    tags: r.tags ?? '',
+    tags: normalizeTags(r.tags),
     source: r.source ?? 'manual',
   };
   return tx('readings', 'readwrite', (s) => s.add(row));
@@ -63,6 +77,11 @@ export async function deleteReading(id) {
 
 export async function allReadings() {
   const rows = await tx('readings', 'readonly', (s) => s.getAll());
+  const broken = (rows || []).filter((r) => typeof r.tags !== 'string');
+  if (broken.length) {
+    for (const r of broken) await updateReading({ ...r, tags: normalizeTags(r.tags) });
+    return allReadings();
+  }
   return (rows || []).sort((a, b) => b.timestamp - a.timestamp);
 }
 
