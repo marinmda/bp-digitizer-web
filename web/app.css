@@ -311,12 +311,19 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   border:0;color:var(--accent-soft);cursor:pointer;padding:2px 4px}
 
 /* --- modal bottom sheet (tag editing) ----------------------------------- */
+/* --kb is the soft keyboard's height, measured from the visual viewport (see
+   the tracker in app.js). The layout viewport does not shrink when a keyboard
+   opens, so a sheet pinned to the bottom would sit behind it -- which put the
+   passphrase field's own OK button out of reach. */
 .sheet{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.32);
-  display:flex;align-items:flex-end;justify-content:center}
+  display:flex;align-items:flex-end;justify-content:center;
+  padding-bottom:var(--kb, 0px)}
 .sheet[hidden]{display:none}
 .sheet-card{background:var(--surface);width:100%;max-width:720px;
   border-radius:28px 28px 0 0;padding:20px 16px calc(28px + env(safe-area-inset-bottom));
-  display:flex;flex-direction:column;gap:12px}
+  display:flex;flex-direction:column;gap:12px;
+  /* What is left of the screen once the keyboard has taken its share. */
+  max-height:calc(100vh - var(--kb, 0px) - 12px);overflow:auto}
 .sheet-card h3{margin:0;font-size:1rem;font-weight:600}
 /* Masked passphrase field with its reveal toggle sitting inside the box. */
 .pass{display:flex;align-items:center;gap:4px;padding:0 4px 0 12px;
