@@ -908,9 +908,35 @@ async function configureReminders() {
   });
 }
 
+/* The scan button has three states, not two. A server that offers OCR but has
+   not been linked yet gets a locked camera rather than nothing at all: hiding
+   it left no way to find out the feature exists, let alone how to unlock it.
+   serverFeatures is only set once /api/health has answered, so an absent
+   server still means no button -- there would be nothing to unlock. */
 function updateScanButton() {
   const fab = $('fab-scan');
-  if (fab) fab.hidden = !(srv.state.linked && srv.state.serverFeatures?.ocr);
+  if (!fab) return;
+  const canOcr = !!srv.state.serverFeatures?.ocr;
+  const unlocked = canOcr && srv.state.linked;
+  fab.hidden = !canOcr;
+  fab.classList.toggle('locked', !unlocked);
+  const label = t(unlocked ? 'dashboard_cd_scan' : 'settings_server_locked');
+  fab.title = label;
+  fab.setAttribute('aria-label', label);
+}
+
+/* Takes the user to the one place the lock can be opened, rather than leaving
+   them to find it. */
+function openServerSettings() {
+  renderSettings();
+  show('settings');
+  const box = $('s-server');
+  if (!box) return;
+  // The heading rather than the box, so the section title comes with it.
+  (box.previousElementSibling || box).scrollIntoView({ behavior: 'smooth', block: 'start' });
+  box.classList.remove('flash');
+  void box.offsetWidth;                      // restart the animation
+  box.classList.add('flash');
 }
 
 /* The scan overlay, ported from CaptureScreen's ProcessingOverlay. Reading a
@@ -1109,10 +1135,13 @@ function wireStepper(btn) {
 function wire() {
   $('fab-add').innerHTML = icon('edit');
   $('fab-add').title = t('dashboard_cd_add_manually');
-  $('fab-scan').innerHTML = icon('camera');
+  $('fab-scan').innerHTML = `${icon('camera')}<span class="fab-lock">${icon('lock', 16)}</span>`;
   $('fab-scan').title = t('dashboard_cd_scan');
   $('fab-add').addEventListener('click', () => openEntry(null));
-  $('fab-scan').addEventListener('click', () => $('scan-file').click());
+  $('fab-scan').addEventListener('click', () => {
+    if ($('fab-scan').classList.contains('locked')) { openServerSettings(); return; }
+    $('scan-file').click();
+  });
   $('s-file-global').addEventListener('change', (e) => {
     if (e.target.files[0]) importFile(e.target.files[0]);
     e.target.value = '';

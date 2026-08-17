@@ -255,6 +255,18 @@ input[type=range]{width:100%;accent-color:var(--accent)}
   width:84px;height:84px;border-radius:24px;
   box-shadow:0 3px 5px rgba(0,0,0,.16),0 1px 18px rgba(0,0,0,.12)}
 .fab svg{width:36px;height:36px}
+/* .fab sets display:grid, which outranks the UA's [hidden] rule -- without
+   this, hiding the scan button did nothing at all. */
+.fab[hidden]{display:none}
+/* Locked: the camera drops to a neutral container so it reads as unavailable
+   rather than primary, and carries a lock badge saying why. */
+.fab{position:relative}
+.fab.locked{background:var(--surface-variant);color:var(--on-surface-variant)}
+.fab-lock{display:none}
+.fab.locked .fab-lock{display:grid;place-items:center;position:absolute;
+  right:6px;bottom:6px;width:24px;height:24px;border-radius:50%;
+  background:var(--primary-container);color:var(--on-primary-container)}
+.fab.locked .fab-lock svg{width:16px;height:16px}
 .fab.small{width:60px;height:60px;border-radius:18px}
 .fab.small svg{width:30px;height:30px}
 .fab:hover{filter:brightness(1.04)}
@@ -270,6 +282,13 @@ input[type=range]{width:100%;accent-color:var(--accent)}
 .scan-bar{width:100%;height:4px;border-radius:2px;background:var(--border);overflow:hidden}
 .scan-bar i{display:block;height:100%;width:0;border-radius:2px;background:var(--accent)}
 .scan-card p{margin:0;font-size:.9rem;text-align:center}
+
+/* Marks the section the locked camera sends you to, so arriving there does not
+   leave you hunting for what changed. */
+@keyframes flash{0%,100%{background:transparent}
+  18%,55%{background:var(--secondary-container)}}
+.flash{animation:flash 1.4s ease;border-radius:12px}
+@media (prefers-reduced-motion:reduce){.flash{animation:none}}
 
 /* --- dropdown menus (export, language) ---------------------------------- */
 .menu-wrap{position:relative}
