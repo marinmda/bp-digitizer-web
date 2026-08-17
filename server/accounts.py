@@ -126,17 +126,37 @@ def _now() -> str:
 # --------------------------------------------------------------------------
 # Every request arrives from Caddy on loopback, so per-IP limiting is
 # meaningless here. A global ceiling still makes guessing hopeless.
+# Redemption is the one endpoint that must answer before it knows who is
+# asking, so it is the one worth rate limiting. The per-IP cap is what stops
+# guessing; the global cap is a backstop against a distributed attempt. They
+# are separate because a single global counter -- which this used to be --
+# lets one noisy client spend everyone's budget and lock out real sign-ups.
 _REDEEM_WINDOW = 60.0
-_REDEEM_MAX = int(os.getenv("REDEEM_MAX_PER_MIN", "20"))
-_attempts: list[float] = []
+_REDEEM_MAX_IP = int(os.getenv("REDEEM_MAX_PER_MIN_IP", "5"))
+_REDEEM_MAX_ALL = int(os.getenv("REDEEM_MAX_PER_MIN", "120"))
+_attempts: dict[str, list[float]] = {}
 
 
-def throttled() -> bool:
+def throttled(ip: str) -> bool:
+    """True if this attempt should be refused. Records it when it is not.
+
+    Nothing is recorded once the global cap is reached, so the table cannot
+    hold more than that many addresses -- a bot cycling through addresses
+    grows it to the cap and no further.
+    """
     now = time.monotonic()
-    _attempts[:] = [t for t in _attempts if now - t < _REDEEM_WINDOW]
-    if len(_attempts) >= _REDEEM_MAX:
+    for key, times in list(_attempts.items()):
+        fresh = [t for t in times if now - t < _REDEEM_WINDOW]
+        if fresh:
+            _attempts[key] = fresh
+        else:
+            del _attempts[key]
+
+    if len(_attempts.get(ip, ())) >= _REDEEM_MAX_IP:
         return True
-    _attempts.append(now)
+    if sum(len(v) for v in _attempts.values()) >= _REDEEM_MAX_ALL:
+        return True
+    _attempts.setdefault(ip, []).append(now)
     return False
 
 

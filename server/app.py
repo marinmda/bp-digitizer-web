@@ -38,6 +38,24 @@ async def current_device(request: Request) -> dict:
     return device
 
 
+def client_ip(request: Request) -> str:
+    """The address the rate limiter counts against.
+
+    Cloudflare sets CF-Connecting-IP from the connection it terminated and
+    overwrites anything the client sent, and the origin is loopback-bound
+    behind the tunnel, so nothing reaches here without passing through it.
+    X-Forwarded-For is the fallback, first entry: Caddy appends its own peer,
+    which is cloudflared on this host and tells us nothing.
+    """
+    cf = request.headers.get("cf-connecting-ip")
+    if cf:
+        return cf.strip()
+    xff = request.headers.get("x-forwarded-for")
+    if xff:
+        return xff.split(",")[0].strip()
+    return request.client.host if request.client else "?"
+
+
 async def admin_only(x_admin: str | None = Header(None)) -> None:
     if x_admin != "1":
         raise HTTPException(404, "Not Found")
@@ -101,8 +119,8 @@ async def me(device: dict = Depends(current_device)):
 
 
 @app.post("/api/invites/redeem")
-async def redeem(response: Response, payload: dict = Body(...)):
-    if accounts.throttled():
+async def redeem(request: Request, response: Response, payload: dict = Body(...)):
+    if accounts.throttled(client_ip(request)):
         raise HTTPException(429, "Too many attempts. Wait a minute and try again.")
     code = accounts.normalise_code(payload.get("code") or "")
     if not code:
