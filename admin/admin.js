@@ -62,6 +62,43 @@ const when = (iso) => {
   return d.toLocaleDateString('ro-RO', { day: 'numeric', month: 'short' });
 };
 
+/* when() reads backwards; an expiry reads forwards. Using the first for the
+   second made a fresh invite claim it expired "chiar acum". */
+const until = (iso) => {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return 'a expirat';
+  const hours = Math.round(ms / 3600000);
+  if (hours < 1) return 'în mai puțin de o oră';
+  if (hours < 48) return `în ${hours} h`;
+  return `în ${Math.round(hours / 24)} zile`;
+};
+
+/* The whole message to send, not just the code. Opening the link redeems the
+   code in whatever browser opens it -- which, from a chat, is the chat's own
+   browser, not the installed app. So the instructions put installing first and
+   entering the code second; getting that order wrong is what burns an invite
+   and produces "it says already used". */
+function inviteMessage(inv) {
+  return [
+    'Salut! Îți trimit acces la wBP Digitizer — o aplicație pentru urmărirea',
+    'tensiunii arteriale. Măsurătorile rămân pe telefonul tău, nu se trimit nicăieri.',
+    '',
+    '1) Deschide linkul:',
+    inv.url,
+    '',
+    '2) Adaugă-l pe ecranul principal:',
+    '• Android (Chrome): meniul ⋮ → „Adaugă la ecranul principal”',
+    '• iPhone (Safari): butonul de partajare → „Add to Home Screen”',
+    '',
+    '3) Deschide aplicația de pe ecranul principal (nu din browser) și apasă',
+    'butonul camerei, cel cu lacăt. Acolo introdu codul:',
+    '',
+    inv.code,
+    '',
+    `Codul e valabil ${inv.expires_in_days ?? 7} zile și înregistrează un singur telefon.`,
+  ].join('\n');
+}
+
 /* ------------------------------------------------------------- invites --- */
 $('form-invite').addEventListener('submit', async (e) => {
   e.preventDefault();
@@ -98,6 +135,13 @@ function showInvite(inv) {
       <div class="val code-big" id="v-code">${esc(inv.code)}</div>
       <button class="btn small" data-copy="${esc(inv.code)}">Copiază</button>
     </div>
+    ${inv.url ? `<div class="field">
+      <label for="v-msg">Mesaj</label>
+      <div class="val" id="v-msg">Instrucțiuni complete, gata de trimis</div>
+      <button class="btn small" data-copy-msg="1">Copiază mesajul</button>
+      <a class="btn small ghost" target="_blank" rel="noopener"
+         href="https://wa.me/?text=${encodeURIComponent(inviteMessage(inv))}">WhatsApp</a>
+    </div>` : ''}
     <p class="note">
       Un singur dispozitiv, expiră în ${esc(inv.expires_in_days)} zile.
       În prima oră de la folosire codul re-leagă <em>același</em> dispozitiv,
@@ -109,15 +153,20 @@ function showInvite(inv) {
     </p>`;
   box.querySelectorAll('[data-copy]').forEach((b) =>
     b.addEventListener('click', () => copy(b.dataset.copy, b)));
+  box.querySelectorAll('[data-copy-msg]').forEach((b) =>
+    b.addEventListener('click', () => copy(inviteMessage(inv), b)));
 }
 
 /* ------------------------------------------------------------ listings --- */
+let ttlDays = 7;
+
 async function load() {
   try {
     const [d, i] = await Promise.all([
       api('/api/admin/devices'),
       api('/api/admin/invites'),
     ]);
+    ttlDays = i.ttl_days ?? ttlDays;
     renderDevices(d.devices);
     renderInvites(i.invites);
   } catch (ex) {
@@ -196,10 +245,11 @@ function renderInvites(invites) {
               // invites.device_id is ON DELETE SET NULL, so a used invite whose
               // device was later deleted legitimately points at nothing.
               ? (i.device_id ? `· dispozitiv #${i.device_id}` : '· dispozitiv șters')
-              : `· expiră ${esc(when(i.expires_at))}`}
+              : `· expiră ${esc(until(i.expires_at))}`}
             ${live ? `· <span class="code">${esc(i.code)}</span>` : ''}
           </div>
         </div>
+        ${live && i.url ? `<button class="btn small ghost" data-msg="${i.id}">Mesaj</button>` : ''}
         ${live ? `<button class="btn small ghost" data-copy="${esc(i.code)}">Copiază</button>` : ''}
         ${!i.used_at ? `<button class="btn small danger" data-unvite="${i.id}">Anulează</button>` : ''}
       </div>`;
@@ -208,6 +258,13 @@ function renderInvites(invites) {
 
   $('invites').querySelectorAll('[data-copy]').forEach((b) =>
     b.addEventListener('click', () => copy(b.dataset.copy, b)));
+
+  $('invites').querySelectorAll('[data-msg]').forEach((b) =>
+    b.addEventListener('click', () => {
+      const i = invites.find((x) => String(x.id) === b.dataset.msg);
+      // ttl_days is a property of the listing, not of a row.
+      copy(inviteMessage({ ...i, expires_in_days: ttlDays }), b);
+    }));
 
   $('invites').querySelectorAll('[data-unvite]').forEach((b) =>
     b.addEventListener('click', async () => {
