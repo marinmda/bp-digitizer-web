@@ -276,3 +276,18 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;
   border:2px solid var(--surface);box-shadow:0 1px 3px rgba(0,0,0,.3)}
 input[type=range]::-moz-range-thumb{width:26px;height:26px;border:2px solid var(--surface);
   border-radius:50%;background:var(--accent)}
+
+/* --- pinned save bar ------------------------------------------------------
+   Fixed, not sticky: as the last child of the view a sticky element has no
+   slack to stick within -- its containing block ends where it does -- so it
+   would simply scroll away. --kb carries the soft keyboard height, measured
+   from the visual viewport, which is what imePadding() does on Android. */
+.action-bar{position:fixed;left:0;right:0;bottom:var(--kb, 0px);z-index:15;
+  display:flex;align-items:center;gap:12px;
+  margin:0 auto;max-width:720px;
+  padding:12px 16px calc(12px + env(safe-area-inset-bottom));
+  background:var(--bg);
+  border-top:1px solid color-mix(in srgb,var(--text) 12%,transparent)}
+.action-bar[hidden]{display:none}
+.action-bar .btn{flex:1;padding:14px 22px;font-size:1rem}
+.action-bar .link{flex:0 0 auto}

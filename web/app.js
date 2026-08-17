@@ -103,6 +103,7 @@ function show(view) {
     $(`view-${v}`).hidden = v !== view;
   }
   document.querySelector('.fabs').hidden = view !== 'dashboard';
+  document.querySelector('.action-bar').hidden = view !== 'add';
   window.scrollTo(0, 0);
 }
 
@@ -989,6 +990,19 @@ function wire() {
     $(id).addEventListener('input', syncPreview);
   }
   document.querySelectorAll('.step').forEach(wireStepper);
+  // Keep the save bar above the soft keyboard. Sticky positions against the
+  // layout viewport, which does not shrink when a keyboard opens, so the
+  // difference has to be measured and applied as padding.
+  const vv = window.visualViewport;
+  if (vv) {
+    const track = () => {
+      const hidden = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--kb', `${Math.round(hidden)}px`);
+    };
+    vv.addEventListener('resize', track);
+    vv.addEventListener('scroll', track);
+    track();
+  }
   // Typing a value is the third way in, for when neither dragging nor
   // stepping is quick enough -- 210 is a long way from 120 either way.
   for (const [box, slider] of [['val-sys', 'in-sys'], ['val-dia', 'in-dia'],
