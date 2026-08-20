@@ -5,7 +5,10 @@ const VERSION = '__BUILD_VERSION__';
 const CACHE = 'bp-shell-' + VERSION;
 const SHELL = ['/', '/index.html', '/app.css', '/app.js', '/db.js', '/bp.js', '/i18n.js',
                '/manifest.webmanifest', '/icons/icon.svg', '/icons/icon-192.png',
-               '/icons/icon-512.png'];
+               '/icons/icon-512.png',
+               // Precached: a push can arrive offline, and a badge that 404s
+               // leaves Android drawing the Chrome logo instead.
+               '/icons/badge-96.png'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil((async () => {
@@ -80,7 +83,7 @@ self.addEventListener('push', (e) => {
   try { d = e.data ? e.data.json() : {}; } catch (err) { d = {}; }
   e.waitUntil(self.registration.showNotification(d.title || 'BP Digitizer', {
     body: d.body || '', tag: d.tag || 'reminder', renotify: true,
-    icon: '/icons/icon-192.png', badge: '/icons/icon-192.png', data: d,
+    icon: '/icons/icon-192.png', badge: '/icons/badge-96.png', data: d,
     actions: [{ action: 'measure', title: d.action_measure || 'Measure' },
               { action: 'snooze', title: d.action_snooze || 'Snooze 15 min' }],
   }));

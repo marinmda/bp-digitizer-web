@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 96 96" width="96" height="96">
+  <!--
+    Notification badge. Android draws this from the alpha channel alone, as a
+    flat silhouette in the system tint, so it must be a transparent-background
+    shape rather than the app icon — a full-colour square is opaque edge to
+    edge and comes out as a featureless block.
+
+    The heart from the app mark with the pulse trace cut through it as a real
+    hole (fill-rule evenodd). The trace stops short of both edges: run to the
+    full width and at ~18dp it stops being a heart with a line through it and
+    becomes a heart sliced in two.
+  -->
+  <g fill="#FFFFFF">
+    <path fill-rule="evenodd" d="
+      M48,84 C48,84 10,58 10,34 C10,20 20.5,10 33,10 C40.5,10 45.5,14 48,18
+      C50.5,14 55.5,10 63,10 C75.5,10 86,20 86,34 C86,58 48,84 48,84 Z
+      M22,40 h11.5 l5,-11 l8,23 l6,-15 l4,3 h17.5 v7 h-21 l-2,-4.5 l-7,17.5
+      l-8,-23 l-3,7 h-11 z"/>
+  </g>
+</svg>
