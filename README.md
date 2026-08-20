@@ -3,7 +3,7 @@
 Log, chart and export blood pressure readings. **Local-first**: readings live in
 your browser's IndexedDB and are never sent anywhere.
 
-A web companion to the [Android app](https://github.com/marinmda/BloodPressureMonitor),
+A web companion to the [Android app](https://github.com/zandaulion/BloodPressureMonitor),
 sharing its clinical logic and its translations. It exists because publishing a
 health app to Google Play requires a company account — so the app cannot be
 distributed there, and asking non-technical friends to sideload an APK is worse
@@ -16,7 +16,7 @@ There is **no build step, no framework, and no backend requirement** — copy
 `web/` onto any static host and you are done.
 
 ```bash
-git clone https://github.com/marinmda/bp-digitizer-web
+git clone https://github.com/zandaulion/bp-digitizer-web
 cd bp-digitizer-web
 python3 -m http.server -d web 8080     # or any static host
 ```
@@ -59,7 +59,7 @@ address, with a global ceiling behind it.
 ./admin.sh forget 3         # delete it, and its backup and reminders with it
 ```
 
-There is a graphical console too — [pwa-invite-console](https://github.com/marinmda/pwa-invite-console) — which fronts every
+There is a graphical console too — [pwa-invite-console](https://github.com/zandaulion/pwa-invite-console) — which fronts every
 app behind this invite mechanism, so it belongs to none of them. Adding one is
 an entry in its `apps.json`; the endpoints it expects are listed in its README.
 
